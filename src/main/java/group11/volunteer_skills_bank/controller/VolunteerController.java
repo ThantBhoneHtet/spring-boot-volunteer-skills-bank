@@ -48,5 +48,4 @@ public class VolunteerController {
     public Mono<Void> deleteVolunteer(@PathVariable String id) {
         return volunteerService.deleteVolunteer(id);
     }
-
 }
