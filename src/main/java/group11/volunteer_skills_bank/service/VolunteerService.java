@@ -80,7 +80,7 @@ public class VolunteerService {
                 : volunteer.getPrivacySettings()
         );
         volunteer.setAvailability(dto.availability() != null ? dto.availability() : volunteer.getAvailability());
-        System.out.println(volunteerCustomRepo.getDocumentReference(volunteer.getVolunteerId()));
+        // System.out.println(volunteerCustomRepo.getDocumentReference(volunteer.getVolunteerId()));
 
         return volunteerRepository.save(volunteer); 
     }

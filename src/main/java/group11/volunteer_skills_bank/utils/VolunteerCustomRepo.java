@@ -23,8 +23,8 @@ public class VolunteerCustomRepo {
         return !(flag);
     }
 
-    public DocumentReference getDocumentReference(String id) {
-        return firestore.collection("volunteers").document(id);
-    }
+    // public DocumentReference getDocumentReference(String id) {
+    //     return firestore.collection("volunteers").document(id);
+    // }
 
 }
