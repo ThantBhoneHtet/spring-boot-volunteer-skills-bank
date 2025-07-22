@@ -7,6 +7,8 @@ import com.google.cloud.spring.data.firestore.Document;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
+
 import java.util.List;
 
 @Data
@@ -35,6 +37,7 @@ public class Volunteer {
 
     @Data
     @AllArgsConstructor
+    @NoArgsConstructor
     public static class Location {
         private String city;
         private String state;
@@ -43,6 +46,7 @@ public class Volunteer {
 
     @Data
     @AllArgsConstructor
+    @NoArgsConstructor
     public static class PrivacySettings {
         private String profileVisibility; // "public" | "connections" | "private"
         private Boolean searchVisibility;
