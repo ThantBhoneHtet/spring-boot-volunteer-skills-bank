@@ -3,7 +3,6 @@ package group11.volunteer_skills_bank.dto.volunteer;
 import java.util.List;
 
 public record VolunteerUpdateDto (
-    String email,
     String password,
     String firstName,
     String lastName,
@@ -13,7 +12,8 @@ public record VolunteerUpdateDto (
     List<String> skills,
     List<String> certifications,
     VolunteerPrivacySettings privacySettings,
-    List<String> availability
+        List<String> availability,
+    String phoneNumber
 ){
     public record VolunteerPrivacySettings(
         String profileVisibility,
@@ -22,13 +22,7 @@ public record VolunteerUpdateDto (
 
     public record VolunteerLocation(
         String city,
-        String state,
-        Coordinates coordinates
-    ) {}
-
-    public record Coordinates(
-        Double latitude,
-        Double longitude
+        String state
     ) {}
 }
 

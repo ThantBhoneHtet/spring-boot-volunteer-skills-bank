@@ -1,10 +1,17 @@
 package group11.volunteer_skills_bank.service;
 
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
+import java.io.IOException;
+import java.util.concurrent.ExecutionException;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
+
+import com.google.api.core.ApiFuture;
 import com.google.cloud.Timestamp;
-import com.google.cloud.firestore.GeoPoint;
+import com.google.cloud.firestore.Firestore;
+import com.google.cloud.firestore.WriteResult;
 
 import group11.volunteer_skills_bank.dto.volunteer.VolunteerCreationDto;
 import group11.volunteer_skills_bank.dto.volunteer.VolunteerUpdateDto;
@@ -23,9 +30,17 @@ public class VolunteerService {
     @Autowired
     private VolunteerCustomRepo volunteerCustomRepo;
 
-    public Mono<Volunteer> createVolunteer(VolunteerCreationDto dto) 
-    {
-        if(volunteerCustomRepo.existsByEmail(dto.email())) {
+    @Autowired
+    private S3Service s3Service;
+
+    @Autowired
+    private Firestore firestore;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
+    public Mono<Volunteer> createVolunteer(VolunteerCreationDto dto) {
+        if (volunteerCustomRepo.existsByEmail(dto.email())) {
             return Mono.error(new IllegalArgumentException("Email already exists"));
         }
 
@@ -37,55 +52,110 @@ public class VolunteerService {
         volunteer.setCompletedOpportunities(0);
         volunteer.setRating(0.0);
         volunteer.setTotalHours(0);
-        volunteer.setCreatedAt(Timestamp.now());                
+        volunteer.setCreatedAt(Timestamp.now());
         return volunteerRepository.save(volunteer);
-      
+
     }
 
     public Mono<Volunteer> getVolunteer(String id) {
-       return volunteerRepository.findById(id);
+        return volunteerRepository.findById(id);
     }
 
     public Flux<Volunteer> getAllVolunteers() {
         return volunteerRepository.findAll();
     }
 
-    public Mono<Volunteer> updateVolunteer(String id, VolunteerUpdateDto dto) {
-        Volunteer volunteer = volunteerRepository.findById(id).block();
-        if (volunteer == null) {
-            return Mono.empty();
-        }
-        volunteer.setEmail(dto.email());
-        volunteer.setPassword(dto.password());
-        volunteer.setFirstName(dto.firstName());
-        volunteer.setLastName(dto.lastName());
-        volunteer.setAvatarUrl(dto.avatarUrl());
-        if (dto.location() != null) {
-            volunteer.setLocation(
-            new Volunteer.Location(
-                                dto.location().city() != null ? dto.location().city() : volunteer.getLocation().getCity(), 
-                                dto.location().state() != null ? dto.location().state() : volunteer.getLocation().getState(), 
-                                dto.location().coordinates() != null 
-                                    ? new GeoPoint(
-                                        dto.location().coordinates().latitude(), 
-                                        dto.location().coordinates().longitude()) 
-                                    : volunteer.getLocation().getCoordinates()));
-        }
-        volunteer.setBio(dto.bio() != null ? dto.bio() : volunteer.getBio());
-        volunteer.setSkills(dto.skills() != null ? dto.skills() : volunteer.getSkills());
-        volunteer.setCertifications(dto.certifications() != null ? dto.certifications() : volunteer.getCertifications());
-        volunteer.setPrivacySettings(
-            dto.privacySettings() != null 
-                ? new Volunteer.PrivacySettings(dto.privacySettings().profileVisibility(), dto.privacySettings().searchVisibility()) 
-                : volunteer.getPrivacySettings()
-        );
-        volunteer.setAvailability(dto.availability() != null ? dto.availability() : volunteer.getAvailability());
-        // System.out.println(volunteerCustomRepo.getDocumentReference(volunteer.getVolunteerId()));
+    public Mono<Volunteer> updateVolunteer(String id, VolunteerUpdateDto dto, MultipartFile image)
+            throws IOException, ExecutionException, InterruptedException { // Declare exceptions to be thrown
 
-        return volunteerRepository.save(volunteer); 
+        Volunteer volunteer = volunteerRepository.findById(id).block(); // Block and get the volunteer
+        if (volunteer == null) {
+            throw new RuntimeException("Volunteer with ID " + id + " not found.");
+        }
+
+        // Handle image upload if a new file is provided
+        if (image != null) {
+            // Optional: Consider deleting the old image from S3 if the URL is changing.
+            // This would require fetching the old avatarUrl before setting the new one.
+            String newImageUrl = s3Service.uploadFile(image);
+            volunteer.setAvatarUrl(newImageUrl); // Set the new URL
+        } else if (dto.avatarUrl() != null) {
+            // If no new image file, but an avatarUrl is provided in DTO, use it.
+            // This allows updating the URL without re-uploading a file.
+            volunteer.setAvatarUrl(dto.avatarUrl());
+        }
+        // If imageFile is null and dto.avatarUrl() is null, the existing avatarUrl
+        // remains.
+
+        // Update other fields from DTO if they are not null
+        if (dto.password() != null) {
+            volunteer.setPassword(dto.password());
+        }
+        if (dto.firstName() != null) {
+            volunteer.setFirstName(dto.firstName());
+        }
+        if (dto.lastName() != null) {
+            volunteer.setLastName(dto.lastName());
+        }
+
+        if (dto.location() != null) {
+            String city = dto.location().city() != null ? dto.location().city()
+                    : (volunteer.getLocation() != null ? volunteer.getLocation().getCity() : null);
+            String state = dto.location().state() != null ? dto.location().state()
+                    : (volunteer.getLocation() != null ? volunteer.getLocation().getState() : null);
+            volunteer.setLocation(new Volunteer.Location(city, state));
+        }
+
+        if (dto.bio() != null) {
+            volunteer.setBio(dto.bio());
+        }
+        if (dto.skills() != null) {
+            volunteer.setSkills(dto.skills());
+        }
+        if (dto.certifications() != null) {
+            volunteer.setCertifications(dto.certifications());
+        }
+        if(dto.phoneNumber() != null) {
+            volunteer.setPhoneNumber(dto.phoneNumber());
+        }
+
+        if (dto.privacySettings() != null) {
+            volunteer.setPrivacySettings(
+                    new Volunteer.PrivacySettings(
+                            dto.privacySettings().profileVisibility(),
+                            dto.privacySettings().searchVisibility()));
+        } else if (volunteer.getPrivacySettings() == null) {
+            // If DTO privacy settings are null and existing are null, initialize default
+            volunteer.setPrivacySettings(new Volunteer.PrivacySettings(null, null));
+        }
+
+        if (dto.availability() != null) {
+            volunteer.setAvailability(dto.availability());
+        }
+
+        // Update the document in Firestore
+        ApiFuture<WriteResult> future = firestore.collection("volunteers").document(id).set(volunteer);
+        future.get(); // Wait for the write to complete
+
+        // If you are also using a Spring Data Reactive Repository, you might save it
+        // here too synchronously
+        return volunteerRepository.save(volunteer); // Block on saving to the repository
+
     }
-    
+
     public Mono<Void> deleteVolunteer(String id) {
         return volunteerRepository.deleteById(id);
+    }
+
+    public boolean existByEmail(String email) {
+        return volunteerCustomRepo.existsByEmail(email);
+    }
+
+    public Volunteer login(String email, String password) {
+        Volunteer volunteer = volunteerRepository.findByEmail(email).block();
+        if (volunteer != null && password.equals(volunteer.getPassword())) {
+            return volunteer;
+        }
+        return null;
     }
 }

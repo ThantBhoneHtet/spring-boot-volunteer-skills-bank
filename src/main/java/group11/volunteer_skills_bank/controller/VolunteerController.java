@@ -1,9 +1,13 @@
 package group11.volunteer_skills_bank.controller;
 
+import java.io.IOException;
+import java.util.concurrent.ExecutionException;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import group11.volunteer_skills_bank.dto.volunteer.VolunteerCreationDto;
 import group11.volunteer_skills_bank.dto.volunteer.VolunteerUpdateDto;
@@ -13,8 +17,8 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 @RestController
-@CrossOrigin(origins = "*")
 @RequestMapping("/api/volunteers")
+@CrossOrigin(origins = "*")
 public class VolunteerController {
     
     @Autowired
@@ -39,9 +43,13 @@ public class VolunteerController {
         return volunteerService.getAllVolunteers();
     }
 
-    @PutMapping("/{id}")
-    public Mono<Volunteer> updateVolunteer(@PathVariable String id, @RequestBody VolunteerUpdateDto dto) {
-        return volunteerService.updateVolunteer(id, dto);
+    @PutMapping(value = "/{id}", consumes = { "multipart/form-data" }) // Assuming 'consumes' is still multipart
+    public Mono<Volunteer> updateVolunteer(
+            @PathVariable String id,
+            @RequestPart("dto") VolunteerUpdateDto dto,
+            @RequestPart(value ="image",required=false) MultipartFile image // 'image' is now required as per signature
+    ) throws IOException, ExecutionException, InterruptedException {
+        return volunteerService.updateVolunteer(id, dto, image);
     }
 
     @DeleteMapping("/{id}")

@@ -2,7 +2,6 @@ package group11.volunteer_skills_bank.utils;
 
 import org.springframework.stereotype.Repository;
 
-import com.google.cloud.firestore.DocumentReference;
 import com.google.cloud.firestore.Firestore;
 
 @Repository

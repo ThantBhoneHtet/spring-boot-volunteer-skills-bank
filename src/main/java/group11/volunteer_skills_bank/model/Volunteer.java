@@ -1,7 +1,6 @@
 package group11.volunteer_skills_bank.model;
 
 import com.google.cloud.Timestamp;
-import com.google.cloud.firestore.GeoPoint;
 import com.google.cloud.firestore.annotation.DocumentId;
 import com.google.cloud.spring.data.firestore.Document;
 
@@ -25,6 +24,7 @@ public class Volunteer {
     private String bio;
     private List<String> skills;
     private List<String> certifications;
+    private String phoneNumber;
     private String status; // "active" | "suspended"
     private Timestamp createdAt;
     private Timestamp lastLogin;
@@ -41,7 +41,6 @@ public class Volunteer {
     public static class Location {
         private String city;
         private String state;
-        private GeoPoint coordinates;
     }
 
     @Data
