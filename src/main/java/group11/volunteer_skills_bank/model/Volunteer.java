@@ -7,6 +7,7 @@ import com.google.cloud.spring.data.firestore.Document;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.Builder.Default;
 
 import java.util.List;
 
@@ -34,6 +35,7 @@ public class Volunteer {
     private Integer completedOpportunities;
     private Double rating;
     private Timestamp lastActive;
+    private Boolean isOnline;
 
     @Data
     @AllArgsConstructor

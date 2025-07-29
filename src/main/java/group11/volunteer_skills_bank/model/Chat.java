@@ -20,4 +20,5 @@ public class Chat {
     private Map<String, Integer> unreadCounts; // user references, count
     private Timestamp createdAt;
     private String type; // "group" | "direct" | "global"
+    private String groupName;
 }

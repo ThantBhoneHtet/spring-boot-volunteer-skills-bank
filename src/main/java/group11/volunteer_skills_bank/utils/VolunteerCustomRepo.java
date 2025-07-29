@@ -8,6 +8,9 @@ import com.google.cloud.firestore.Firestore;
 public class VolunteerCustomRepo {
     private final Firestore firestore;
 
+    private final String COLLECTION_NAME = "volunteers";
+
+
     public VolunteerCustomRepo(Firestore firestore) {
         this.firestore = firestore;
     }
@@ -15,7 +18,7 @@ public class VolunteerCustomRepo {
     public boolean existsByEmail(String email) {
         boolean flag = false;
         try {
-            flag = firestore.collection("volunteers").whereEqualTo("email", email).get().get().isEmpty();
+            flag = firestore.collection(COLLECTION_NAME).whereEqualTo("email", email).whereEqualTo("email", email).get().get().isEmpty();
         } catch (Exception e) {
             return false;
         }

@@ -15,9 +15,10 @@ public class Message {
     
     private String chatId;
     private String senderId; // user reference
-    private List<String> recipientIds; // user references
+    // private List<String> recipientIds; // user references
     private String content;
     private List<String> attachments; // URLs
-    private Timestamp timestamp;
+    private Timestamp sendAt;
+    private Timestamp editedAt;
     private List<String> readBy; // user references
 }
