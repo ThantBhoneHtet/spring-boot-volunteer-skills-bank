@@ -31,10 +31,6 @@ public class ChatService {
     @Autowired
     private VolunteerService volunteerService;
 
-    @Autowired
-    private OrganizationService orgService;
-
-
     public Mono<Chat> createChat(ChatRequest chatRequest) {
         Chat chat = new Chat();
         chat.setCreatedAt(Timestamp.now());

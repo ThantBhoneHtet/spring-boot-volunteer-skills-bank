@@ -16,7 +16,6 @@ import com.google.cloud.Timestamp;
 import group11.volunteer_skills_bank.dto.message.MessageRequest;
 import group11.volunteer_skills_bank.model.Chat;
 import group11.volunteer_skills_bank.model.Message;
-import group11.volunteer_skills_bank.model.Volunteer;
 import group11.volunteer_skills_bank.service.ChatService;
 
 @RestController

@@ -80,12 +80,8 @@ public class VolunteerService {
             String newImageUrl = s3Service.uploadFile(image);
             volunteer.setAvatarUrl(newImageUrl); // Set the new URL
         } else if (dto.avatarUrl() != null) {
-            // If no new image file, but an avatarUrl is provided in DTO, use it.
-            // This allows updating the URL without re-uploading a file.
             volunteer.setAvatarUrl(dto.avatarUrl());
         }
-        // If imageFile is null and dto.avatarUrl() is null, the existing avatarUrl
-        // remains.
 
         // Update other fields from DTO if they are not null
         if (dto.password() != null) {
@@ -101,8 +97,8 @@ public class VolunteerService {
         if (dto.location() != null) {
             String city = dto.location().city() != null ? dto.location().city()
                     : (volunteer.getLocation() != null ? volunteer.getLocation().getCity() : null);
-            String state = dto.location().state() != null ? dto.location().state()
-                    : (volunteer.getLocation() != null ? volunteer.getLocation().getState() : null);
+            String state = dto.location().country() != null ? dto.location().country()
+                    : (volunteer.getLocation() != null ? volunteer.getLocation().getCoutry() : null);
             volunteer.setLocation(new Volunteer.Location(city, state));
         }
 
@@ -158,4 +154,13 @@ public class VolunteerService {
         }
         return null;
     }
+
+    public Volunteer findVolunteerByEmail(String email) {
+        return volunteerRepository.findByEmail(email).block();
+    }
+
+    public void saveVolunteer(Volunteer volunteer) {
+        volunteerRepository.save(volunteer).block();
+    }
+    
 }

@@ -21,8 +21,8 @@ public record VolunteerUpdateDto (
     ) {}
 
     public record VolunteerLocation(
-        String city,
-        String state
+        String country,
+        String city
     ) {}
 }
 

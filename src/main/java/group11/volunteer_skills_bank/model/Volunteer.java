@@ -7,8 +7,6 @@ import com.google.cloud.spring.data.firestore.Document;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.Builder.Default;
-
 import java.util.List;
 
 @Data
@@ -41,8 +39,8 @@ public class Volunteer {
     @AllArgsConstructor
     @NoArgsConstructor
     public static class Location {
+        private String coutry;
         private String city;
-        private String state;
     }
 
     @Data
