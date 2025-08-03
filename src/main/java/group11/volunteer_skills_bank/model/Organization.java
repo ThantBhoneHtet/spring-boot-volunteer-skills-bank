@@ -14,7 +14,9 @@ public class Organization {
     @DocumentId
     private String organizationId;
     private String email;
-    private String organiztionName;
+    private String password;
+    private String address;
+    private String organizationName;
     private String organizationType;
     private String description;
     private String logoUrl;
