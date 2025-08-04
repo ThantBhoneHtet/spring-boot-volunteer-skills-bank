@@ -1,10 +1,12 @@
 package group11.volunteer_skills_bank.service;
 
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+
+import com.google.cloud.Timestamp;
 
 import group11.volunteer_skills_bank.model.Organization;
 import group11.volunteer_skills_bank.repository.OrganizationRepo;
-import group11.volunteer_skills_bank.repository.OrganizationRequestRepo;
 import reactor.core.publisher.Mono;
 
 @Service
@@ -14,12 +16,14 @@ public class OrganizationService
     
     private OrganizationRequestService organizationRequestService;
 
-    private OrganizationRequestRepo organizationRequestRepo;
 
-    public OrganizationService(OrganizationRepo organizationRepo, OrganizationRequestService organizationRequestService) 
+    private PasswordEncoder passwordEncoder;
+
+    public OrganizationService(OrganizationRepo organizationRepo, OrganizationRequestService organizationRequestService,PasswordEncoder passwordEncoder) 
     {
         this.organizationRepo = organizationRepo;
         this.organizationRequestService = organizationRequestService;
+        this.passwordEncoder = passwordEncoder;
     }
 
     public Mono<Organization> approveRequest(String organizationId) {
@@ -50,5 +54,14 @@ public class OrganizationService
                                 return organizationRepo.save(organization);
                             });
                 });
+    }
+
+    public void login(String email, String password) {
+        Organization organization = organizationRepo.findByEmail(email).block();
+        if (organization == null || !passwordEncoder.matches(password, organization.getPassword())) {
+            throw new IllegalArgumentException("Invalid email or password");
+        }
+        organization.setLastLogin(Timestamp.now());
+        organizationRepo.save(organization).block();
     }
 }

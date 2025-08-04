@@ -12,6 +12,7 @@ public class Admin {
     @DocumentId
     private String userId;
     private String email;
+    private String password;
     private String firstName;
     private String lastName;
     private String role; // "superadmin" | "moderator" | "support"
