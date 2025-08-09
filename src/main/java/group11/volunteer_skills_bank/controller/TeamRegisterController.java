@@ -32,6 +32,8 @@ import java.util.ArrayList;
 @CrossOrigin(origins = "*")
 public class TeamRegisterController {
 
+    // ... (rest of the class remains the same)
+
     private final TeamRegisterService teamRegisterService;
     private final TeamRegisterTrackRepository teamRegisterTrackRepository;
     private final TeamApprovalRepository teamApprovalRepository;
@@ -71,7 +73,9 @@ public class TeamRegisterController {
                     track.setTrackId(registration.getRegisterId());
                     track.setVolunteerId(registration.getEmail()); // Use email as volunteerId
                     track.setTeamId(registration.getTeamId());
+                   // Use the team name from the DTO
                     track.setStatus("Pending");
+                  
 
                     return teamRegisterTrackRepository.saveTeamRegisterTrack(track)
                             .map(savedTrack -> {
@@ -102,9 +106,10 @@ public class TeamRegisterController {
                 });
     }
 
+
     /**
      * Retrieves all pending registrations for a specific team.
-     * This endpoint now fetches the volunteer's real email and sorts by createdAt in ascending order.
+     * This endpoint now fetches the volunteer's real email.
      *
      * @param teamId The ID of the team.
      * @return A Mono with a ResponseEntity containing a list of pending registrations.
@@ -121,7 +126,6 @@ public class TeamRegisterController {
             try {
                 QuerySnapshot querySnapshot = firestore.collection("teamRegister")
                         .whereEqualTo("teamId", teamId)
-                        .orderBy("createdAt") // Sort by createdAt in ascending order
                         .get()
                         .get();
 
@@ -129,7 +133,7 @@ public class TeamRegisterController {
                 for (DocumentSnapshot doc : querySnapshot.getDocuments()) {
                     TeamRegister reg = doc.toObject(TeamRegister.class);
                     if (reg != null) {
-                        // Fetch the status from the teamRegisterTrack collection
+                         // Fetch the status from the teamRegisterTrack collection
                         String status = "Pending"; // Default status
                         try {
                             DocumentSnapshot trackDoc = firestore.collection("teamRegisterTrack")
@@ -189,14 +193,14 @@ public class TeamRegisterController {
 
     /**
      * Retrieves all applications made by a specific volunteer.
-     * This endpoint now fetches the team name.
+     * This endpoint now fetches the team name using the volunteer's unique ID.
      *
-     * @param volunteerId The ID of the volunteer (email).
+     * @param volunteerId The email of the volunteer to look up the unique ID.
      * @return A Mono with a ResponseEntity containing a list of all volunteer applications.
      */
     @GetMapping("/volunteer/{volunteerId}")
     public Mono<ResponseEntity<?>> getRegistrationsByVolunteerId(@PathVariable String volunteerId) {
-        System.out.println("TeamRegisterController: Fetching registrations for volunteerId: " + volunteerId);
+        System.out.println("TeamRegisterController: Fetching registrations for volunteer email: " + volunteerId);
         return Mono.fromCallable(() -> {
             if (volunteerId == null || volunteerId.trim().isEmpty()) {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST)
@@ -204,8 +208,26 @@ public class TeamRegisterController {
             }
 
             try {
+                // Fetch the volunteer's unique ID from their email
+                String normalizedEmail = volunteerId.trim().toLowerCase();
+                QuerySnapshot volunteerSnapshot = firestore.collection("volunteers")
+                        .whereEqualTo("email", normalizedEmail)
+                        .limit(1)
+                        .get()
+                        .get();
+                String volunteerUniqueId = null;
+                if (!volunteerSnapshot.isEmpty()) {
+                    Volunteer volunteer = volunteerSnapshot.getDocuments().get(0).toObject(Volunteer.class);
+                    volunteerUniqueId = volunteer.getVolunteerId();
+                    System.out.println("TeamRegisterController: Found volunteerId: " + volunteerUniqueId + " for email: " + normalizedEmail);
+                } else {
+                    System.out.println("TeamRegisterController: No volunteer found for email: " + normalizedEmail);
+                    return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                            .body(Map.of("error", "No volunteer found for email: " + normalizedEmail));
+                }
+
                 QuerySnapshot trackSnapshot = firestore.collection("teamRegisterTrack")
-                        .whereEqualTo("volunteerId", volunteerId)
+                        .whereEqualTo("volunteerId", volunteerUniqueId)
                         .get()
                         .get();
 
@@ -215,10 +237,8 @@ public class TeamRegisterController {
                     if (track != null) {
                         Map<String, Object> registrationMap = new HashMap<>();
                         registrationMap.put("trackId", track.getTrackId());
-                      
                         registrationMap.put("teamId", track.getTeamId());
                         registrationMap.put("status", track.getStatus());
-                     
                         registrationMap.put("approvalDate", track.getApprovalDate());
 
                         // Fetch teamName from the `teams` collection
@@ -236,7 +256,7 @@ public class TeamRegisterController {
                         registrations.add(registrationMap);
                     }
                 }
-                System.out.println("TeamRegisterController: Found " + registrations.size() + " registrations for volunteerId: " + volunteerId);
+                System.out.println("TeamRegisterController: Found " + registrations.size() + " registrations for volunteerId: " + volunteerUniqueId);
                 return ResponseEntity.ok(registrations);
             } catch (Exception e) {
                 System.err.println("TeamRegisterController: Error fetching registrations for volunteerId " + volunteerId + ": " + e.getMessage());
@@ -246,6 +266,8 @@ public class TeamRegisterController {
         });
     }
 
+    // ... (rest of the class remains the same)
+    
     /**
      * Checks if a volunteer has already registered for a specific team.
      *

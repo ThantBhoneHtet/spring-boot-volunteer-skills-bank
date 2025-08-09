@@ -77,10 +77,12 @@ public class TeamRegisterService {
                                     }
                                     TeamRegisterTrack track = new TeamRegisterTrack();
                                     track.setTrackId(savedRegistration.getRegisterId());
+                                    track.setVolunteerId(volunteerId); // Set the fetched volunteerId
+                                    track.setTeamId(dtoValidated.teamId()); // Set the teamId
                                     track.setStatus("Pending");
                                     track.setApprovalDate(Timestamp.now());
                                     track.setApprovalId(null);
-                                    System.out.println("TeamRegisterService: Creating TeamRegisterTrack with ID: " + savedRegistration.getRegisterId() + ", status: Pending");
+                                    System.out.println("TeamRegisterService: Creating TeamRegisterTrack with ID: " + savedRegistration.getRegisterId() + ", volunteerId: " + volunteerId + ", teamId: " + dtoValidated.teamId() + ", status: Pending");
                                     return teamRegisterTrackRepository.saveTeamRegisterTrack(track)
                                         .thenReturn(savedRegistration);
                                 });

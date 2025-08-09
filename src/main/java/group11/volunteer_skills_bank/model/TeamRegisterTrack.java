@@ -14,6 +14,6 @@ public class TeamRegisterTrack {
     private String status;
     private Timestamp approvalDate;
     private String approvalId;
-    private String volunteerId; // Add this to link to the volunteer
-    private String teamId;     // Add this to link to the team
+    private String volunteerId; 
+    private String teamId;     
 }
