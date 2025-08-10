@@ -6,6 +6,7 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
+import group11.volunteer_skills_bank.model.Organization;
 import group11.volunteer_skills_bank.model.Volunteer;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
@@ -22,14 +23,35 @@ public class EmailService
     @Autowired
     private PasswordResetTokenService passwordResetTokenService;
 
-    public ResponseEntity<?> sendForgotPasswordEmail(String email) throws MessagingException {
-        // 1. Find the user by their email to get their ID
-        Volunteer volunteer = volunteerService.findVolunteerByEmail(email);
+    @Autowired
+    private OrganizationService organizationService;
 
+    public ResponseEntity<?> sendForgotPasswordEmail(String email) throws MessagingException 
+    {
+        if (email == null || email.isEmpty()) {
+            return ResponseEntity.badRequest().body("Email is required");
+        }
+        String userId = null;
+        String userType = null;
+        Volunteer volunteer = volunteerService.findVolunteerByEmail(email);
         if (volunteer != null) {
+            userId = volunteer.getVolunteerId();
+            userType = "volunteer";
+        }
+        else {
+            Organization organization = organizationService.findOrganizationByEmail(email).block();
+            if (organization != null) {
+                userId = organization.getOrganizationId();
+                userType = "organization";
+            }
+
+        }
+        
+
+        if (userId!=null && userType!=null) {
             // 2. Create a token AND save it to the database with an expiration date.
             // This service handles the logic of creating and saving the token.
-            String token = passwordResetTokenService.createTokenForVolunteer(volunteer);
+            String token = passwordResetTokenService.createToken(userId,userType);
 
             // 3. Create the full reset link pointing to your FRONTEND application
             String resetLink = "http://localhost:8081/reset-password?token=" + token;

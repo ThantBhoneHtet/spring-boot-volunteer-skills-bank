@@ -22,10 +22,9 @@ public class PasswordResetToken {
     /**
      * The ID of the volunteer this token belongs to.
      */
-    private String volunteerId;
+    private String userId;
 
-    /**
-     * The timestamp when this token will expire and become invalid.
-     */
+    private String userType;
+
     private Timestamp expiryDate;
 }

@@ -1,7 +1,6 @@
 package group11.volunteer_skills_bank.model;
 
 import com.google.cloud.Timestamp;
-import com.google.cloud.firestore.GeoPoint;
 import com.google.cloud.firestore.annotation.DocumentId;
 import com.google.cloud.spring.data.firestore.Document;
 
@@ -33,8 +32,7 @@ public class Organization {
 
     @Data
     public static class Location {
-        private String address;
         private String city;
-        private GeoPoint coordinates;
+        private String country;
     }
 }

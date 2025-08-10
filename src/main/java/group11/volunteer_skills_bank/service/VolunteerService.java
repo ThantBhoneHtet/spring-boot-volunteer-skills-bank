@@ -162,5 +162,17 @@ public class VolunteerService {
     public void saveVolunteer(Volunteer volunteer) {
         volunteerRepository.save(volunteer).block();
     }
+
+    public Mono<Volunteer> findVolunteerById(String id) {
+        return volunteerRepository.findById(id);
+    }
+
+    public void logout(String id) {
+        Volunteer volunteer = volunteerRepository.findById(id).block();
+        if (volunteer != null) {
+            volunteer.setLastLogin(null);
+            volunteerRepository.save(volunteer).block();
+        }
+    }
     
 }

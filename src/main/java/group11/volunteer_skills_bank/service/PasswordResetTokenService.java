@@ -6,8 +6,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import com.google.cloud.Timestamp;
+
+import group11.volunteer_skills_bank.model.Organization;
 import group11.volunteer_skills_bank.model.PasswordResetToken;
 import group11.volunteer_skills_bank.model.Volunteer;
+import group11.volunteer_skills_bank.repository.OrganizationRepo;
 import group11.volunteer_skills_bank.repository.PasswordResetTokenRepository;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -25,12 +28,12 @@ public class PasswordResetTokenService
 
     @Autowired
     private VolunteerService volunteerService;
-    
-    public String createTokenForVolunteer(Volunteer volunteer) {
-        // 1. Generate a secure, random, unique token
-        String rawToken = UUID.randomUUID().toString();
 
-        // 2. Hash the token before storing it in the database for security
+    @Autowired
+    private OrganizationRepo organizationRepo;
+    
+    public String createToken(String userId, String userType) {
+        String rawToken = UUID.randomUUID().toString();
         String hashedToken = passwordEncoder.encode(rawToken);
 
         // 3. Calculate the expiration date (15 minutes from now)
@@ -38,50 +41,68 @@ public class PasswordResetTokenService
         Instant expiration = now.plus(EXPIRATION_MINUTES, ChronoUnit.MINUTES);
         Timestamp expiryDate = Timestamp.of(java.sql.Timestamp.from(expiration));
 
-        // 4. Create the token object to be saved
+        // 4. Create the token object with the generic userId and userType
         PasswordResetToken resetToken = new PasswordResetToken(
                 hashedToken,
-                volunteer.getVolunteerId(),
+                userId, // Use the provided userId
+                userType, // Use the provided userType
                 expiryDate);
 
-        // 5. Save the token to the 'passwordResetTokens' collection in Firestore
-        tokenRepository.save(resetToken).block(); // .block() waits for the async operation to complete
+        // 5. Save the token to the database
+        tokenRepository.save(resetToken).block();
 
-        // 6. Return the ORIGINAL, UNHASHED token to be included in the email link
+        // 6. Return the ORIGINAL, UNHASHED token for the email link
         return rawToken;
     }
     
     public void resetPassword(String rawToken, String newPassword) {
-        // 1. Find all tokens. We must do this because we can't query by a raw token.
+        // 1. Find the token document in the database
+        PasswordResetToken token = findAndValidateToken(rawToken); // Assumes this helper method exists
+
+        // 2. Use the userType from the token to determine which user to update
+        switch (token.getUserType()) {
+            case "volunteer":
+                Volunteer volunteer = volunteerService.findVolunteerById(token.getUserId()).block();
+                if (volunteer == null) throw new RuntimeException("Volunteer not found.");
+                volunteer.setPassword(passwordEncoder.encode(newPassword));
+                volunteerService.saveVolunteer(volunteer);
+                break;
+
+            case "organization":
+                Organization organization = organizationRepo.findById(token.getUserId()).block();
+                if (organization == null) throw new RuntimeException("Organization not found.");
+                organization.setPassword(passwordEncoder.encode(newPassword));
+                organizationRepo.save(organization).block();
+                break;
+
+            default:
+                throw new RuntimeException("Invalid user type in token.");
+        }
+
+        // 3. Delete the token so it cannot be used again
+        tokenRepository.deleteById(token.getHashedToken()).block();
+    }
+
+    private PasswordResetToken findAndValidateToken(String rawToken) {
+        if (rawToken == null || rawToken.isBlank()) {
+            throw new RuntimeException("Reset token cannot be empty.");
+        }
         List<PasswordResetToken> allTokens = tokenRepository.findAll().collectList().block();
-        if (allTokens == null || allTokens.isEmpty()) {
+
+        if (allTokens == null) {
             throw new RuntimeException("Invalid password reset token.");
         }
 
         PasswordResetToken validToken = allTokens.stream()
-                // 2. Find the token that matches the raw token when hashed
                 .filter(token -> passwordEncoder.matches(rawToken, token.getHashedToken()))
                 .findFirst()
                 .orElseThrow(() -> new RuntimeException("Invalid password reset token."));
-
-        // 3. Check if the token has expired
-        Timestamp now = Timestamp.of(java.sql.Timestamp.from(Instant.now()));
+        Timestamp now = Timestamp.now();
         if (validToken.getExpiryDate().compareTo(now) < 0) {
-            tokenRepository.delete(validToken).block(); // Clean up expired token
+            // Best practice: Delete the expired token from the database.
+            tokenRepository.delete(validToken).block();
             throw new RuntimeException("Password reset token has expired.");
         }
-
-        // 4. Get the associated volunteer
-        Volunteer volunteer = volunteerService.getVolunteer(validToken.getVolunteerId()).block();
-        if (volunteer == null) {
-            throw new RuntimeException("User not found for the given token.");
-        }
-
-        // 5. Hash the new password and update the volunteer
-        volunteer.setPassword(passwordEncoder.encode(newPassword));
-        volunteerService.saveVolunteer(volunteer);
-
-        // 6. Delete the token so it cannot be used again
-        tokenRepository.delete(validToken).block();
+        return validToken;
     }
 }

@@ -64,4 +64,20 @@ public class OrganizationService
         organization.setLastLogin(Timestamp.now());
         organizationRepo.save(organization).block();
     }
+
+    public Mono<Organization> findOrganizationByEmail(String email) {
+        return organizationRepo.findByEmail(email);
+    }
+
+    public Mono<Organization> findOrganization(String organizationId) {
+        return organizationRepo.findById(organizationId);
+    }
+
+    public void logout(String id) {
+        Organization organization = organizationRepo.findById(id).block();
+        if (organization != null) {
+            organization.setLastLogin(null);
+            organizationRepo.save(organization).block();
+        }
+    }
 }

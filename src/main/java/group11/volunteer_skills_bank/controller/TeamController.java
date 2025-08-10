@@ -8,7 +8,6 @@ import group11.volunteer_skills_bank.service.TeamService;
 import group11.volunteer_skills_bank.repository.TeamRegisterTrackRepository;
 import com.google.cloud.firestore.Firestore;
 import com.google.cloud.firestore.QuerySnapshot;
-import com.google.cloud.firestore.DocumentSnapshot;
 import com.google.cloud.Timestamp;
 import java.util.List;
 import java.util.Map;

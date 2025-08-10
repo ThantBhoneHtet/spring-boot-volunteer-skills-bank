@@ -28,11 +28,19 @@ public class AdminService
     public void login(String email, String password) 
     {
         Admin admin = adminRepo.findByEmail(email).block();
-        if (admin == null || !passwordEncoder.matches(password, admin.getPassword())) 
-        {
+        if (admin == null || !passwordEncoder.matches(password, admin.getPassword())) {
             throw new IllegalArgumentException("Invalid email or password");
         }
         admin.setLastActive(Timestamp.now());
-        adminRepo.save(admin).block();    
+        adminRepo.save(admin).block();
+    }
+    
+    public void logout(String id) 
+    {
+        Admin admin = adminRepo.findById(id).block();
+        if (admin != null) {
+            admin.setLastActive(null);
+            adminRepo.save(admin).block();
+        }
     }
 }
