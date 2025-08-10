@@ -11,5 +11,4 @@ public interface VolunteerRepository extends FirestoreReactiveRepository<Volunte
 
     Mono<Boolean> existsByEmail(String email);
     Mono<Volunteer> findByEmail(String email);
-    
 }

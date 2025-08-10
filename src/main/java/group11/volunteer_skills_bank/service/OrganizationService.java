@@ -1,10 +1,17 @@
 package group11.volunteer_skills_bank.service;
 
+import java.io.IOException;
+import java.util.concurrent.ExecutionException;
+
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-
+import org.springframework.web.multipart.MultipartFile;
+import com.google.cloud.firestore.Firestore;
+import com.google.cloud.firestore.WriteResult;
+import com.google.api.core.ApiFuture;
 import com.google.cloud.Timestamp;
-
+import group11.volunteer_skills_bank.dto.organization.OrganizationUpdate;
 import group11.volunteer_skills_bank.model.Organization;
 import group11.volunteer_skills_bank.repository.OrganizationRepo;
 import reactor.core.publisher.Mono;
@@ -13,17 +20,18 @@ import reactor.core.publisher.Mono;
 public class OrganizationService 
 {
     private OrganizationRepo organizationRepo;
-    
     private OrganizationRequestService organizationRequestService;
-
-
     private PasswordEncoder passwordEncoder;
+    private S3Service s3Service;
+    @Autowired
+    private Firestore firestore;
 
-    public OrganizationService(OrganizationRepo organizationRepo, OrganizationRequestService organizationRequestService,PasswordEncoder passwordEncoder) 
+    public OrganizationService(OrganizationRepo organizationRepo, OrganizationRequestService organizationRequestService,PasswordEncoder passwordEncoder,S3Service s3Service) 
     {
         this.organizationRepo = organizationRepo;
         this.organizationRequestService = organizationRequestService;
         this.passwordEncoder = passwordEncoder;
+        this.s3Service = s3Service;
     }
 
     public Mono<Organization> approveRequest(String organizationId) {
@@ -56,13 +64,14 @@ public class OrganizationService
                 });
     }
 
-    public void login(String email, String password) {
+    public Organization login(String email, String password) {
         Organization organization = organizationRepo.findByEmail(email).block();
         if (organization == null || !passwordEncoder.matches(password, organization.getPassword())) {
             throw new IllegalArgumentException("Invalid email or password");
         }
         organization.setLastLogin(Timestamp.now());
-        organizationRepo.save(organization).block();
+        Organization savedOrganization = organizationRepo.save(organization).block();
+        return savedOrganization;
     }
 
     public Mono<Organization> findOrganizationByEmail(String email) {
@@ -79,5 +88,47 @@ public class OrganizationService
             organization.setLastLogin(null);
             organizationRepo.save(organization).block();
         }
+    }
+
+    public Mono<Organization> updateOrganization(String id, OrganizationUpdate dto, MultipartFile image)
+    throws IOException,ExecutionException,InterruptedException
+    {
+        Organization organization = organizationRepo.findById(id).block();
+        if (organization == null) 
+        {
+            throw new RuntimeException("Volunteer with ID " + id + " not found.");
+        }
+        if (image != null) {
+            // Optional: Consider deleting the old image from S3 if the URL is changing.
+            // This would require fetching the old avatarUrl before setting the new one.
+            String newImageUrl = s3Service.uploadFile(image);
+            organization.setLogoUrl(newImageUrl); // Set the new URL
+        }
+
+          if (dto.location() != null) {
+            String city = dto.location().city() != null ? dto.location().city()
+                    : (organization.getLocation() != null ? organization.getLocation().getCity() : null);
+            String country = dto.location().country() != null ? dto.location().country()
+                    : (organization.getLocation() != null ? organization.getLocation().getCountry() : null);
+            organization.setLocation(new Organization.Location(city, country));
+        }
+        if (dto.discription() != null) {
+            organization.setDescription(dto.discription());
+        }
+        if (dto.organizationName() != null) {
+            organization.setOrganizationName(dto.organizationName());
+        }
+        if (dto.organizationType() != null) {
+            organization.setOrganizationType(dto.organizationType());
+        }
+        if (dto.website() != null) {
+            organization.setWebsite(dto.website());
+        }
+        if (dto.phoneNumber() != null) {
+            organization.setPhoneNumber(dto.phoneNumber());
+        }
+          ApiFuture<WriteResult> future = firestore.collection("organizations").document(id).set(organization);
+        future.get(); // Wait for the write to complete
+        return organizationRepo.save(organization);
     }
 }

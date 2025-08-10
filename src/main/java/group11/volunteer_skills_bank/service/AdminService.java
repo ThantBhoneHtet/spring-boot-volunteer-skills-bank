@@ -25,14 +25,14 @@ public class AdminService
         adminRepo.save(admin).block();
     }
 
-    public void login(String email, String password) 
+    public Admin login(String email, String password) 
     {
         Admin admin = adminRepo.findByEmail(email).block();
         if (admin == null || !passwordEncoder.matches(password, admin.getPassword())) {
             throw new IllegalArgumentException("Invalid email or password");
         }
         admin.setLastActive(Timestamp.now());
-        adminRepo.save(admin).block();
+        return adminRepo.save(admin).block();
     }
     
     public void logout(String id) 

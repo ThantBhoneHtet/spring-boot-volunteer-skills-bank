@@ -4,7 +4,10 @@ import com.google.cloud.Timestamp;
 import com.google.cloud.firestore.annotation.DocumentId;
 import com.google.cloud.spring.data.firestore.Document;
 
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
+
 import java.util.List;
 
 @Data
@@ -20,6 +23,7 @@ public class Organization {
     private String description;
     private String logoUrl;
     private String website;
+    private String phoneNumber;
     private Location location;
     private Boolean verified;
     private List<String> verificationDocuments;
@@ -31,6 +35,8 @@ public class Organization {
     private Double rating;
 
     @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
     public static class Location {
         private String city;
         private String country;

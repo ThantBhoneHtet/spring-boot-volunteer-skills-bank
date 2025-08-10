@@ -97,9 +97,9 @@ public class VolunteerService {
         if (dto.location() != null) {
             String city = dto.location().city() != null ? dto.location().city()
                     : (volunteer.getLocation() != null ? volunteer.getLocation().getCity() : null);
-            String state = dto.location().country() != null ? dto.location().country()
+            String country = dto.location().country() != null ? dto.location().country()
                     : (volunteer.getLocation() != null ? volunteer.getLocation().getCoutry() : null);
-            volunteer.setLocation(new Volunteer.Location(city, state));
+            volunteer.setLocation(new Volunteer.Location(city, country));
         }
 
         if (dto.bio() != null) {

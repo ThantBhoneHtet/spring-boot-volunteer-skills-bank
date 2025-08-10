@@ -11,7 +11,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import group11.volunteer_skills_bank.dto.organization.OrganizationLoginResponse;
 import group11.volunteer_skills_bank.model.Admin;
+import group11.volunteer_skills_bank.model.Organization;
 import group11.volunteer_skills_bank.model.Volunteer;
 import group11.volunteer_skills_bank.service.AdminService;
 import group11.volunteer_skills_bank.service.OrganizationService;
@@ -51,15 +53,26 @@ public class LoginController
         try {
             String email = credentials.get("email");
             String password = credentials.get("password");
-            organizationService.login(email, password);
+        
+            // 1. Capture the returned object from the service
+            Organization loggedInOrganization = organizationService.login(email, password);
+            // 2. Create a DTO from the database entity
+            OrganizationLoginResponse responseDto = new OrganizationLoginResponse(
+                loggedInOrganization.getOrganizationId(), // Assumes your Organization entity has a getId() method
+                loggedInOrganization.getEmail(),
+                loggedInOrganization.getOrganizationName()
+            );
 
-            return ResponseEntity.ok("Login successful!");
+            // 3. Return the DTO object. Spring Boot will automatically convert it to JSON.
+            return ResponseEntity.ok(responseDto);
 
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", e.getMessage()));
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", "An unexpected error occurred."));
+            // It's good practice to log the full error on the server
+            // log.error("An unexpected error occurred during login", e); 
+             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", "An unexpected error occurred."));
         }
     }
     
@@ -68,15 +81,14 @@ public class LoginController
         try {
             String email = credentials.get("email");
             String password = credentials.get("password");
-            adminService.login(email, password);
+            Admin admin=adminService.login(email, password);
 
-            return ResponseEntity.ok("Login successful!");
-
+            return ResponseEntity.ok(admin);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", "An unexpected error occurred."));
+                    .body(Map.of("error", "An unexpected error occurred.")); 
         }
     }
 
