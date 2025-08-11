@@ -1,6 +1,8 @@
 package group11.volunteer_skills_bank.controller;
 
 import java.io.IOException;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,7 +20,7 @@ import reactor.core.publisher.Mono;
 
 @RestController
 @RequestMapping("/api/volunteers")
-@CrossOrigin(origins = "*")
+@CrossOrigin(origins = "http://localhost:8081", allowCredentials = "true")
 public class VolunteerController {
     
     @Autowired
@@ -26,34 +28,64 @@ public class VolunteerController {
 
     @PostMapping
     public ResponseEntity<?> createVolunteer(@RequestBody VolunteerCreationDto dto) {
-        try{
-            return new ResponseEntity<>(volunteerService.createVolunteer(dto).block(), HttpStatus.CREATED);
+        try {
+            Volunteer createdVolunteer = volunteerService.createVolunteer(dto).block();
+            return ResponseEntity.status(HttpStatus.CREATED).body(createdVolunteer);
         } catch (IllegalArgumentException e) {
-            return new ResponseEntity<>("Email already exists", HttpStatus.BAD_REQUEST);
+            return ResponseEntity.badRequest().body(Map.of("message", "Email already exists"));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(Map.of("message", "Error creating volunteer"));
         }
     }
 
     @GetMapping("/{id}")
-    public Mono<Volunteer> getVolunteerById(@PathVariable String id) {
-        return volunteerService.getVolunteer(id);
+    public ResponseEntity<Mono<Volunteer>> getVolunteerById(@PathVariable String id) {
+        try {
+            return ResponseEntity.ok(volunteerService.getVolunteer(id));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Mono.empty());
+        }
     }
 
     @GetMapping
-    public Flux<Volunteer> getAllVolunteers() {
-        return volunteerService.getAllVolunteers();
+    public ResponseEntity<Flux<Volunteer>> getAllVolunteers() {
+        return ResponseEntity.ok(volunteerService.getAllVolunteers());
     }
 
-    @PutMapping(value = "/{id}", consumes = { "multipart/form-data" }) // Assuming 'consumes' is still multipart
-    public Mono<Volunteer> updateVolunteer(
+    @PutMapping(value = "/{id}", consumes = { "multipart/form-data" })
+    public ResponseEntity<Mono<Volunteer>> updateVolunteer(
             @PathVariable String id,
             @RequestPart("dto") VolunteerUpdateDto dto,
-            @RequestPart(value ="image",required=false) MultipartFile image // 'image' is now required as per signature
-    ) throws IOException, ExecutionException, InterruptedException {
-        return volunteerService.updateVolunteer(id, dto, image);
+            @RequestPart(value = "image", required = false) MultipartFile image
+    ) {
+        try {
+            return ResponseEntity.ok(volunteerService.updateVolunteer(id, dto, image));
+        } catch (IOException | ExecutionException | InterruptedException e) {
+            return ResponseEntity.internalServerError().body(Mono.empty());
+        }
     }
 
     @DeleteMapping("/{id}")
-    public Mono<Void> deleteVolunteer(@PathVariable String id) {
-        return volunteerService.deleteVolunteer(id);
+    public ResponseEntity<Mono<Void>> deleteVolunteer(@PathVariable String id) {
+        try {
+            return ResponseEntity.ok(volunteerService.deleteVolunteer(id));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(Mono.empty());
+        }
+    }
+
+    // New endpoints to support the frontend requirements
+    @GetMapping("/{volunteerId}/stats")
+    public ResponseEntity<?> getVolunteerStats(@PathVariable String volunteerId) {
+        try {
+            // Implement your stats logic here
+            return ResponseEntity.ok(Map.of(
+                "completedTasks", 10,
+                "ongoingTasks", 2,
+                "skills", List.of("Java", "Spring Boot")
+            ));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(Map.of("message", "Error retrieving stats"));
+        }
     }
 }
