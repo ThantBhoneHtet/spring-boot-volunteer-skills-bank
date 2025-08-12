@@ -8,7 +8,9 @@ import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import com.google.api.core.ApiFuture;
 import com.google.cloud.Timestamp;
+import com.google.cloud.firestore.WriteResult;
 
 import group11.volunteer_skills_bank.dto.chat.ChatParticipantsDto;
 import group11.volunteer_skills_bank.dto.chat.ChatRequest;
@@ -91,6 +93,9 @@ public class ChatService {
         );
     }
 
+    public void updateChat(Chat chat) {
+        chatCustomRepo.updateChat(chat);
+    }
 
     public Mono<Void> deleteChat(String id) {
         return chatRepository.deleteById(id);

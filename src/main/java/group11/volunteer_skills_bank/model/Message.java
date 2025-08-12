@@ -17,8 +17,10 @@ public class Message {
     private String senderId; // user reference
     // private List<String> recipientIds; // user references
     private String content;
-    private List<String> attachments; // URLs
-    private Timestamp sendAt;
+    // private List<String> attachments; // URLs
+    private  String attachment;
+    private String attachmentName;
+    private Timestamp sentAt;
     private Timestamp editedAt;
     private List<String> readBy; // user references
 }

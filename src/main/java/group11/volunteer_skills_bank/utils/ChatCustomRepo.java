@@ -10,6 +10,8 @@ import com.google.cloud.firestore.DocumentSnapshot;
 import com.google.cloud.firestore.Firestore;
 import com.google.cloud.firestore.QuerySnapshot;
 
+import group11.volunteer_skills_bank.model.Chat;
+
 @Repository
 public class ChatCustomRepo {
 
@@ -40,4 +42,8 @@ public class ChatCustomRepo {
         }
     }
 
+    public void updateChat(Chat chat) {
+        firestore.collection(COLLECTION_NAME).document(chat.getChatId()).set(chat);
+    }
+ 
 }
