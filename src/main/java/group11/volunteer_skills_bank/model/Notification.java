@@ -1,25 +1,31 @@
 package group11.volunteer_skills_bank.model;
 
+import com.google.cloud.Timestamp;
 import lombok.Data;
-import java.util.Date;
-import java.util.List;
 
 @Data
 public class Notification {
-    private String id; // Firebase will generate this
-    private String content;
-    private String email; // recipient email
-    private boolean read;
-    private Date timestamp;
+    private String id;
     private String title;
-    private String type; // "individual_application", "team_application", "team_registration"
+    private String type; // application, response, registration, registration_response, post_request, post_approval
+    private boolean read;
+    private Timestamp timestamp;
+    private String content;
+    private String recipientId;
     
-    // Metadata fields
-    private String volunteerName;
-    private String postName;
-    private String teamName;
-    private List<String> teamMembers;
+    // Generic metadata fields (type-specific)
+    private String applicantType; // "volunteer" or "team"
+    private String applicantId;
+    private String applicantName;
+    private String opportunityId;
+    private String opportunityName;
     private String organizationId;
-    private String teamId;
+    private String organizationName;
     private String leaderId;
+    private String volunteerId;
+    private String volunteerName;
+    private String teamId;
+    private String teamName;
+    private String status; // "accepted" or "rejected"
+    private String adminId;
 }
