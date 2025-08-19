@@ -42,6 +42,9 @@ public class LoginController
         Volunteer volunteer = volunteerService.login(email, password);
         System.out.println(volunteer);
         if (volunteer != null) {
+            if (volunteer.getStatus().equals("suspended")) {
+                return ResponseEntity.status(403).body("Your account is being suspendent");
+            }
             return ResponseEntity.ok(volunteer);
         } else {
             return ResponseEntity.status(401).body("Invalid email or password");

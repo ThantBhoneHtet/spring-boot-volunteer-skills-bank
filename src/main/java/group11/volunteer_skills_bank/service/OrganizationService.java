@@ -17,8 +17,7 @@ import group11.volunteer_skills_bank.repository.OrganizationRepo;
 import reactor.core.publisher.Mono;
 
 @Service
-public class OrganizationService 
-{
+public class OrganizationService {
     private OrganizationRepo organizationRepo;
     private OrganizationRequestService organizationRequestService;
     private PasswordEncoder passwordEncoder;
@@ -26,8 +25,8 @@ public class OrganizationService
     @Autowired
     private Firestore firestore;
 
-    public OrganizationService(OrganizationRepo organizationRepo, OrganizationRequestService organizationRequestService,PasswordEncoder passwordEncoder,S3Service s3Service) 
-    {
+    public OrganizationService(OrganizationRepo organizationRepo, OrganizationRequestService organizationRequestService,
+            PasswordEncoder passwordEncoder, S3Service s3Service) {
         this.organizationRepo = organizationRepo;
         this.organizationRequestService = organizationRequestService;
         this.passwordEncoder = passwordEncoder;
@@ -39,7 +38,7 @@ public class OrganizationService
                 .switchIfEmpty(Mono.error(new IllegalArgumentException("Organization request not found")))
                 .flatMap(request -> {
                     // Check if the request is in a pending state
-                    if (!"pending".equals(request.getStatus())) {
+                    if (!"pending".equals(request.getStatus()) && !"rejected".equals(request.getStatus())) {
                         return Mono.error(new IllegalStateException("Request is not in a pending state"));
                     }
 
@@ -54,7 +53,9 @@ public class OrganizationService
                                 organization.setOrganizationType(updatedRequest.getOrganizationType());
                                 organization.setEmail(updatedRequest.getEmail());
                                 organization.setPassword(updatedRequest.getPassword()); // Hashed password is moved here
-                                organization.setAddress(updatedRequest.getAddress());
+                                organization.setLocation(new Organization.Location(
+                                        updatedRequest.getLocation().getCity(),
+                                        updatedRequest.getLocation().getCountry()));
                                 organization.setDescription(updatedRequest.getDescription());
                                 organization.setCreatedAt(updatedRequest.getCreatedAt());
                                 organization.setStatus("active");
@@ -91,11 +92,9 @@ public class OrganizationService
     }
 
     public Mono<Organization> updateOrganization(String id, OrganizationUpdate dto, MultipartFile image)
-    throws IOException,ExecutionException,InterruptedException
-    {
+            throws IOException, ExecutionException, InterruptedException {
         Organization organization = organizationRepo.findById(id).block();
-        if (organization == null) 
-        {
+        if (organization == null) {
             throw new RuntimeException("Volunteer with ID " + id + " not found.");
         }
         if (image != null) {
@@ -105,7 +104,7 @@ public class OrganizationService
             organization.setLogoUrl(newImageUrl); // Set the new URL
         }
 
-          if (dto.location() != null) {
+        if (dto.location() != null) {
             String city = dto.location().city() != null ? dto.location().city()
                     : (organization.getLocation() != null ? organization.getLocation().getCity() : null);
             String country = dto.location().country() != null ? dto.location().country()
@@ -127,7 +126,7 @@ public class OrganizationService
         if (dto.phoneNumber() != null) {
             organization.setPhoneNumber(dto.phoneNumber());
         }
-          ApiFuture<WriteResult> future = firestore.collection("organizations").document(id).set(organization);
+        ApiFuture<WriteResult> future = firestore.collection("organizations").document(id).set(organization);
         future.get(); // Wait for the write to complete
         return organizationRepo.save(organization);
     }

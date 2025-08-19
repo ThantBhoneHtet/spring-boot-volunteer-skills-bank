@@ -149,9 +149,11 @@ public class VolunteerService {
 
     public Volunteer login(String email, String password) {
         Volunteer volunteer = volunteerRepository.findByEmail(email).block();
-        if (volunteer != null && password.equals(volunteer.getPassword())) {
+        if (volunteer != null && password.equals(volunteer.getPassword())) 
+        {
             return volunteer;
         }
+
         return null;
     }
 
@@ -170,7 +172,15 @@ public class VolunteerService {
     public void logout(String id) {
         Volunteer volunteer = volunteerRepository.findById(id).block();
         if (volunteer != null) {
-            volunteer.setLastLogin(null);
+            volunteer.setLastLogin(Timestamp.now());
+            volunteerRepository.save(volunteer).block();
+        }
+    }
+
+    public void updateStauts(String id, String status) {
+        Volunteer volunteer = volunteerRepository.findById(id).block();
+        if(volunteer!=null) {
+            volunteer.setStatus(status);
             volunteerRepository.save(volunteer).block();
         }
     }

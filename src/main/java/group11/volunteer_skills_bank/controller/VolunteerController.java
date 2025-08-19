@@ -80,12 +80,21 @@ public class VolunteerController {
         try {
             // Implement your stats logic here
             return ResponseEntity.ok(Map.of(
-                "completedTasks", 10,
-                "ongoingTasks", 2,
-                "skills", List.of("Java", "Spring Boot")
-            ));
+                    "completedTasks", 10,
+                    "ongoingTasks", 2,
+                    "skills", List.of("Java", "Spring Boot")));
         } catch (Exception e) {
             return ResponseEntity.internalServerError().body(Map.of("message", "Error retrieving stats"));
+        }
+    }
+    
+    @PutMapping("/{volunteerId}/status")
+    public ResponseEntity<?> updateVolunteerStatus(@PathVariable String volunteerId,@RequestBody Map<String, String> status) {
+        try {
+            volunteerService.updateStauts(volunteerId, status.get("status"));
+            return ResponseEntity.ok(Map.of("message", "Status updated successfully"));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(Map.of("message", "Error updating status"));
         }
     }
 }

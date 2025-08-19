@@ -14,15 +14,14 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 @Service
-public class OrganizationRequestService 
-{
+public class OrganizationRequestService {
     @Autowired
     private OrganizationRequestRepo organizationRequestRepo;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
-    public ResponseEntity<?> createOrganizationRequest(OrganizationRequestDto organizationRequestDto) 
-    {
+
+    public ResponseEntity<?> createOrganizationRequest(OrganizationRequestDto organizationRequestDto) {
         if (Boolean.TRUE.equals(organizationRequestRepo.existsByEmail(organizationRequestDto.email()).block())) {
             return ResponseEntity.badRequest().body("Email already exists");
         }
@@ -31,7 +30,9 @@ public class OrganizationRequestService
         organizationRequest.setEmail(organizationRequestDto.email());
         organizationRequest.setOrganizationName(organizationRequestDto.organizationName());
         organizationRequest.setOrganizationType(organizationRequestDto.organizationType());
-        organizationRequest.setAddress(organizationRequestDto.address());
+        organizationRequest.setLocation(new OrganizationRequest.Location(
+                organizationRequestDto.location().country(),
+                organizationRequestDto.location().city()));
         organizationRequest.setPassword(passwordEncoder.encode(organizationRequestDto.password()));
         organizationRequest.setDescription(organizationRequestDto.description());
         organizationRequest.setStatus("pending");
@@ -44,8 +45,7 @@ public class OrganizationRequestService
         return organizationRequestRepo.findAll();
     }
 
-    public Mono<OrganizationRequest> rejectOrganizationRequest(String organizationId, String rejectionReason) 
-    {
+    public Mono<OrganizationRequest> rejectOrganizationRequest(String organizationId, String rejectionReason) {
         return organizationRequestRepo.findByOrganizationId(organizationId)
                 .flatMap(request -> {
                     if (!"pending".equals(request.getStatus())) {
@@ -59,7 +59,7 @@ public class OrganizationRequestService
                     return organizationRequestRepo.save(request);
                 });
     }
-    
+
     public Mono<OrganizationRequest> findOrganization(String organizationId) {
         return organizationRequestRepo.findByOrganizationId(organizationId);
     }
