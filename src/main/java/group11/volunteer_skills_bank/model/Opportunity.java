@@ -13,6 +13,7 @@ import java.util.List;
 public class Opportunity {
     @DocumentId
     private String opportunityId;
+    private String approvalStatus;
     private String title;
     private String description;
     private String organizationId;
@@ -22,9 +23,10 @@ public class Opportunity {
     private Timestamp endDate;
     private String timeCommitment;
     private Integer volunteersNeeded;
-    private String status; // "active" | "completed" | "cancelled"
+    private String status; // "active" | "complete" | "cancelled"
     private Timestamp createdAt;
     private Timestamp updatedAt;
+    private Timestamp deadline;
     private List<String> categories;
 
     @Data
@@ -32,6 +34,6 @@ public class Opportunity {
         private String address;
         private String city;
         private GeoPoint coordinates;
-        private Boolean remote;
+      
     }
 }

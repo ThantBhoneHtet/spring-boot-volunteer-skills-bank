@@ -20,7 +20,7 @@ import reactor.core.publisher.Mono;
 
 @RestController
 @RequestMapping("/api/volunteers")
-@CrossOrigin(origins = "http://localhost:8081", allowCredentials = "true")
+@CrossOrigin(origins = "*") 
 public class VolunteerController {
     
     @Autowired
@@ -52,7 +52,7 @@ public class VolunteerController {
         return ResponseEntity.ok(volunteerService.getAllVolunteers());
     }
 
-    @PutMapping(value = "/{id}", consumes = { "multipart/form-data" })
+    @PutMapping(value = "/{id}", consumes = {"multipart/form-data"})
     public ResponseEntity<Mono<Volunteer>> updateVolunteer(
             @PathVariable String id,
             @RequestPart("dto") VolunteerUpdateDto dto,
@@ -74,11 +74,9 @@ public class VolunteerController {
         }
     }
 
-    // New endpoints to support the frontend requirements
     @GetMapping("/{volunteerId}/stats")
     public ResponseEntity<?> getVolunteerStats(@PathVariable String volunteerId) {
         try {
-            // Implement your stats logic here
             return ResponseEntity.ok(Map.of(
                     "completedTasks", 10,
                     "ongoingTasks", 2,
@@ -89,7 +87,7 @@ public class VolunteerController {
     }
     
     @PutMapping("/{volunteerId}/status")
-    public ResponseEntity<?> updateVolunteerStatus(@PathVariable String volunteerId,@RequestBody Map<String, String> status) {
+    public ResponseEntity<?> updateVolunteerStatus(@PathVariable String volunteerId, @RequestBody Map<String, String> status) {
         try {
             volunteerService.updateStauts(volunteerId, status.get("status"));
             return ResponseEntity.ok(Map.of("message", "Status updated successfully"));
