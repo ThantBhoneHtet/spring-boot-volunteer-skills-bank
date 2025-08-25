@@ -21,7 +21,7 @@ import reactor.core.publisher.Mono;
 
 @RestController
 @RequestMapping("/api/teams")
-@CrossOrigin(origins = "*") // Keep this for CORS
+@CrossOrigin(origins = "*")
 public class TeamController {
 
     @Autowired
@@ -31,10 +31,10 @@ public class TeamController {
     private Firestore firestore;
 
     @Autowired
-    private TeamRegisterTrackRepository teamRegisterTrackRepository; // Added repository
+    private TeamRegisterTrackRepository teamRegisterTrackRepository;
 
     @PostMapping
-    public Mono<ResponseEntity<Team>> createTeam(@RequestBody TeamCreationDto dto) {
+    public Mono<ResponseEntity<Map<String, String>>> createTeam(@RequestBody TeamCreationDto dto) {
         Team team = new Team();
         team.setName(dto.name());
         team.setDescription(dto.description());
@@ -43,16 +43,27 @@ public class TeamController {
         team.setCreatorId(dto.creatorId());
 
         return teamService.createTeam(team)
-                .map(ResponseEntity::ok)
+                .map(savedTeam -> ResponseEntity.ok(Map.of("status", "success", "teamId", savedTeam.getTeamId())))
                 .onErrorResume(IllegalArgumentException.class, e -> {
                     System.err.println("Controller: Bad request for createTeam: " + e.getMessage());
-                    return Mono.just(ResponseEntity.badRequest().build());
+                    // Always return the message to the frontend
+                    if (e.getMessage().contains("Team name") && e.getMessage().contains("already taken")) {
+                        return Mono.just(ResponseEntity
+                            .status(HttpStatus.CONFLICT)
+                            .body(Map.of("error", e.getMessage())));
+                    }
+                    return Mono.just(ResponseEntity
+                        .badRequest()
+                        .body(Map.of("error", e.getMessage())));
                 })
                 .onErrorResume(RuntimeException.class, e -> {
                     System.err.println("Controller: Internal server error for createTeam: " + e.getMessage());
-                    return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build());
+                    return Mono.just(ResponseEntity
+                        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                        .body(Map.of("error", "Unexpected server error. Please try again.")));
                 });
     }
+
 
     @GetMapping("/{id}")
     public Mono<TeamDetailsResponseDto> getTeam(@PathVariable String id) {
