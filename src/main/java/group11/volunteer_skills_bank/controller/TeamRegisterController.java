@@ -29,7 +29,7 @@ import java.util.ArrayList;
 
 @RestController
 @RequestMapping("/api/team-registrations")
-@CrossOrigin(origins = "*")
+@CrossOrigin(origins = "http://localhost:8081", allowCredentials = "true")
 public class TeamRegisterController {
 
     // ... (rest of the class remains the same)
@@ -177,6 +177,8 @@ public class TeamRegisterController {
                             registrationMap.put("teamId", reg.getTeamId());
                             registrationMap.put("createdAt", reg.getCreatedAt());
                             registrationMap.put("status", status);
+                            registrationMap.put("volunteernotiId", reg.getEmail());
+
                             registrations.add(registrationMap);
                         }
                     }
