@@ -22,6 +22,7 @@ import group11.volunteer_skills_bank.model.Message;
 import group11.volunteer_skills_bank.service.ChatService;
 import group11.volunteer_skills_bank.service.MessageService;
 import group11.volunteer_skills_bank.service.S3Service;
+import reactor.core.publisher.Flux;
 
 
 @RestController
@@ -40,6 +41,11 @@ public class MessageController {
 
     @Autowired
     private S3Service s3Service;
+
+    @PostMapping ("change/{chatId}/{newId}")
+    public Flux<Message> changeChat(@PathVariable String chatId, @PathVariable String newId) {
+       return messageService.changeChat(chatId, newId);
+    }
 
 
     @MessageMapping("/chat/{chatId}/send")
@@ -143,6 +149,11 @@ public class MessageController {
 
         String chatId = messageToBeDeleted.getChatId();
         Message latestMessage = updateLatestMessageForChat(chatId);
+        if(latestMessage == null) {
+            latestMessage = new Message();
+            latestMessage.setContent(null);
+            latestMessage.setSentAt(null);
+        }
 
         Map<String, Object> payload = new HashMap<>();
         payload.put("type", "MESSAGE_DELETED");
@@ -155,8 +166,12 @@ public class MessageController {
     }
 
     @GetMapping("/chat/{chatId}")
-    public List<Message> fetchMessages(@PathVariable String chatId) {
-       return messageService.fetchMessages(chatId);
+    public List<Message> fetchMessages(
+        @PathVariable String chatId, 
+        @RequestParam(required = false) String lastMsgId, 
+        @RequestParam(defaultValue = "20") int size) {
+
+        return messageService.fetchMessages(chatId, lastMsgId, size);
     }
 
     @PostMapping("/chat/{chatId}/upload-attachment")
@@ -201,6 +216,13 @@ public class MessageController {
         Message latestMessage = null;
         if (chat != null) {
             latestMessage = messageService.getLatestMessage(chatId);
+            if (latestMessage == null) {
+                chat.setLastMessage(null);
+                chat.setLastMessageTime(null);
+                chatService.updateChat(chat);
+                return null;
+            }
+
             if(latestMessage.getContent() != "")
                 chat.setLastMessage(latestMessage.getContent());
             else

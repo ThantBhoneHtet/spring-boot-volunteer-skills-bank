@@ -130,4 +130,8 @@ public class OrganizationService {
         future.get(); // Wait for the write to complete
         return organizationRepo.save(organization);
     }
+    public void saveOrganization(Organization organization) {
+        organizationRepo.save(organization).block();
+    }
+
 }

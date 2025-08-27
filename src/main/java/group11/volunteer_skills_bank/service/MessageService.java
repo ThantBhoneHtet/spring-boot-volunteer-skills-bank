@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import group11.volunteer_skills_bank.model.Message;
 import group11.volunteer_skills_bank.repository.MessageRepository;
 import group11.volunteer_skills_bank.utils.MessageCustomRepo;
+import reactor.core.publisher.Flux;
 
 @Service
 public class MessageService {
@@ -17,6 +18,16 @@ public class MessageService {
 
     @Autowired
     private MessageCustomRepo messageCustomRepo;
+
+    public Flux<Message> changeChat(String oldId, String newId) {
+    return messageRepository.findByChatId(oldId)
+        .flatMap(message -> {
+            message.setChatId(newId);
+            System.out.println("Message"+message);
+            return messageRepository.save(message); // persist change
+        });
+}
+
 
     public Message saveMessage(Message message) {
         return messageRepository.save(message).block();
@@ -34,8 +45,9 @@ public class MessageService {
         return messageRepository.findById(id).block();
     }
 
-    public List<Message> fetchMessages(String chatId) {
-        return messageRepository.findByChatIdOrderBySentAtAsc(chatId).collectList().block();
+    public List<Message> fetchMessages(String chatId, String lastMsgId, int size) {
+        return messageCustomRepo.fetchMessagesByPages(chatId, size, lastMsgId);
+        // return messageRepository.findByChatIdOrderBySentAtAsc(chatId).collectList().block();
     }
 
     public List<Message> getUnreadMessagesInChatByReaderId(String chatId, String string) {
