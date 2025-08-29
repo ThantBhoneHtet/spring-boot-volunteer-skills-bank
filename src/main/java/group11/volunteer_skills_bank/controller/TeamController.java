@@ -4,6 +4,7 @@ import group11.volunteer_skills_bank.dto.team.TeamCreationDto;
 import group11.volunteer_skills_bank.dto.team.TeamDetailsResponseDto;
 import group11.volunteer_skills_bank.model.Team;
 import group11.volunteer_skills_bank.model.TeamRegisterTrack;
+import group11.volunteer_skills_bank.model.Category;
 import group11.volunteer_skills_bank.service.TeamService;
 import group11.volunteer_skills_bank.repository.TeamRegisterTrackRepository;
 import com.google.cloud.firestore.Firestore;
@@ -41,6 +42,7 @@ public class TeamController {
         team.setMembers(dto.members());
         team.setLeaders(dto.leaders());
         team.setCreatorId(dto.creatorId());
+        team.setCategory(dto.category()); // Save the new category field
 
         return teamService.createTeam(team)
                 .map(savedTeam -> ResponseEntity.ok(Map.of("status", "success", "teamId", savedTeam.getTeamId())))
@@ -64,6 +66,15 @@ public class TeamController {
                 });
     }
 
+    @GetMapping("/categories")
+    public Flux<Category> getAllCategories() {
+        System.out.println("TeamController: Received request for /categories");
+        return teamService.getAllCategories()
+            .onErrorResume(RuntimeException.class, e -> {
+                System.err.println("Controller: Error fetching all categories: " + e.getMessage());
+                return Flux.error(new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to retrieve categories.", e));
+            });
+    }
 
     @GetMapping("/{id}")
     public Mono<TeamDetailsResponseDto> getTeam(@PathVariable String id) {

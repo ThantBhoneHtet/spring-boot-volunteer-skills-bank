@@ -4,6 +4,7 @@ import com.google.api.core.ApiFuture;
 import com.google.cloud.Timestamp;
 import com.google.cloud.firestore.*;
 import group11.volunteer_skills_bank.dto.team.TeamDetailsResponseDto;
+import group11.volunteer_skills_bank.model.Category;
 import group11.volunteer_skills_bank.model.Team;
 import group11.volunteer_skills_bank.model.Volunteer;
 import group11.volunteer_skills_bank.utils.TeamCustomRepo;
@@ -123,6 +124,28 @@ public class TeamService {
                                 })
                             );
                 });
+    }
+
+    /**
+     * Fetches all categories from the database.
+     * @return a Flux of all Category documents.
+     */
+    public Flux<Category> getAllCategories() {
+        System.out.println("TeamService: getAllCategories called.");
+        return Flux.create(sink -> {
+            try {
+                ApiFuture<QuerySnapshot> future = firestore.collection("category").get();
+                List<QueryDocumentSnapshot> documents = future.get().getDocuments();
+                for (QueryDocumentSnapshot document : documents) {
+                    Category category = document.toObject(Category.class);
+                    category.setCategoryId(document.getId());
+                    sink.next(category);
+                }
+                sink.complete();
+            } catch (InterruptedException | ExecutionException e) {
+                sink.error(new RuntimeException("Error fetching categories", e));
+            }
+        });
     }
 
     public Mono<TeamDetailsResponseDto> getTeam(String teamId) {
@@ -323,4 +346,6 @@ public class TeamService {
         System.out.println("TeamService: Retrieved team internally: " + team.getName() + " (ID: " + team.getTeamId() + ")");
         return team;
     }
+    
+    
 }
