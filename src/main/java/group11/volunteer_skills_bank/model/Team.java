@@ -17,5 +17,6 @@ public class Team {
     private List<String> members; // user references
     private List<String> leaders; // user references
     private String creatorId; // Added to track the volunteer who created the team
+    private String category; // New field to store the category
     private Timestamp createdAt;
 }

@@ -7,6 +7,7 @@ import group11.volunteer_skills_bank.model.TeamRegister;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 import reactor.core.publisher.Mono;
+import java.util.concurrent.ExecutionException;
 
 @Repository
 public class TeamRegisterRepo {
@@ -31,7 +32,6 @@ public class TeamRegisterRepo {
             System.out.println("TeamRegisterRepo: Successfully saved registration with ID: " + registration.getRegisterId());
             return registration;
         }).onErrorResume(e -> {
-            System.err.println("TeamRegisterRepo: Error saving registration: " + e.getMessage());
             e.printStackTrace();
             return Mono.error(new RuntimeException("Failed to save team registration: " + e.getMessage(), e));
         });

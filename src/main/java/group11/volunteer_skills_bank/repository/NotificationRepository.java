@@ -26,13 +26,62 @@ public class NotificationRepository {
 
     public List<Notification> findByRecipientId(String recipientId) throws ExecutionException, InterruptedException {
         return firestore.collection(COLLECTION_NAME)
-                .whereEqualTo("recipientId", recipientId)
+                .whereArrayContains("recipientIds", recipientId) // Use arrayContains for lists
+                .orderBy("timestamp", Query.Direction.DESCENDING)
                 .get()
                 .get()
                 .getDocuments()
                 .stream()
                 .map(document -> document.toObject(Notification.class))
                 .collect(Collectors.toList());
+    }
+
+    public List<Notification> findByRecipientIdAndRead(String recipientId, boolean read) 
+            throws ExecutionException, InterruptedException {
+        return firestore.collection(COLLECTION_NAME)
+                .whereArrayContains("recipientIds", recipientId) // Use arrayContains
+                .whereEqualTo("read", read)
+                .orderBy("timestamp", Query.Direction.DESCENDING)
+                .get()
+                .get()
+                .getDocuments()
+                .stream()
+                .map(document -> document.toObject(Notification.class))
+                .collect(Collectors.toList());
+    }
+
+    public List<Notification> findWithFilters(String recipientId, String type, 
+            Boolean unreadOnly, String priority) throws ExecutionException, InterruptedException {
+        
+        Query query = firestore.collection(COLLECTION_NAME)
+                .whereEqualTo("recipientId", recipientId)
+                .orderBy("timestamp", Query.Direction.DESCENDING);
+
+        if (type != null && !type.equals("all")) {
+            query = query.whereEqualTo("type", type);
+        }
+
+        if (unreadOnly != null && unreadOnly) {
+            query = query.whereEqualTo("read", false);
+        }
+
+        // Priority filtering would need to be handled in application logic
+        // since it's not stored in the database
+
+        return query.get()
+                .get()
+                .getDocuments()
+                .stream()
+                .map(document -> document.toObject(Notification.class))
+                .collect(Collectors.toList());
+    }
+
+    public void markAllAsRead(String recipientId) throws ExecutionException, InterruptedException {
+        List<Notification> unreadNotifications = findByRecipientIdAndRead(recipientId, false);
+        
+        for (Notification notification : unreadNotifications) {
+            markAsRead(notification.getId());
+        }
     }
 
     public Notification findById(String id) throws ExecutionException, InterruptedException {

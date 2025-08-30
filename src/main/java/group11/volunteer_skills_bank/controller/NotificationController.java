@@ -4,12 +4,16 @@ import group11.volunteer_skills_bank.dto.notification.*;
 import group11.volunteer_skills_bank.model.Notification;
 import group11.volunteer_skills_bank.service.NotificationService;
 import org.springframework.web.bind.annotation.*;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 
 @RestController
 @RequestMapping("/api/notifications")
+@CrossOrigin(origins = "*") 
 public class NotificationController {
     private final NotificationService notificationService;
 
@@ -17,54 +21,95 @@ public class NotificationController {
         this.notificationService = notificationService;
     }
 
-    @PostMapping("/individual-application")
-    public String createIndividualApplicationNotification(
-            @RequestBody IndividualApplicationRequestDTO request) throws ExecutionException, InterruptedException {
-        return notificationService.createIndividualApplicationNotification(request);
+    // REQUEST ENDPOINTS
+    @PostMapping("/application-request")
+    public String createApplicationRequest(@RequestBody ApplicationRequestDTO request) 
+            throws ExecutionException, InterruptedException {
+        return notificationService.createApplicationRequest(request);
     }
 
-    @PostMapping("/team-application")
-    public String createTeamApplicationNotification(
-            @RequestBody TeamApplicationRequestDTO request) throws ExecutionException, InterruptedException {
-        return notificationService.createTeamApplicationNotification(request);
+    @PostMapping("/team-registration-request")
+    public String createTeamRegistrationRequest(@RequestBody TeamRegistrationRequestDTO request) 
+            throws ExecutionException, InterruptedException {
+        return notificationService.createTeamRegistrationRequest(request);
     }
 
-    @PostMapping("/team-registration")
-    public String createTeamRegistrationNotification(
-            @RequestBody TeamRegistrationRequestDTO request) throws ExecutionException, InterruptedException {
-        return notificationService.createTeamRegistrationNotification(request);
-    }
-
-    // Application Response
-    @PostMapping("/application-response")
-    public String createApplicationResponse(
-            @RequestBody ApplicationResponseDTO request) throws ExecutionException, InterruptedException {
-        return notificationService.createApplicationResponse(request);
-    }
-
-    // Post Request
     @PostMapping("/post-request")
-    public String createPostRequest(
-            @RequestBody PostRequestDTO request) throws ExecutionException, InterruptedException {
+    public String createPostRequest(@RequestBody PostRequestDTO request) 
+            throws ExecutionException, InterruptedException {
         return notificationService.createPostRequest(request);
     }
 
-    // Post Response
+    // RESPONSE ENDPOINTS
+    @PostMapping("/application-response")
+    public String createApplicationResponse(@RequestBody ApplicationResponseDTO request) 
+            throws ExecutionException, InterruptedException {
+        return notificationService.createApplicationResponse(request);
+    }
+
+    @PostMapping("/team-registration-response")
+    public String createTeamRegistrationResponse(@RequestBody TeamRegistrationResponseDTO request) 
+            throws ExecutionException, InterruptedException {
+        return notificationService.createTeamRegistrationResponse(request);
+    }
+
     @PostMapping("/post-response")
-    public String createPostResponse(
-            @RequestBody PostResponseDTO request) throws ExecutionException, InterruptedException {
+    public String createPostResponse(@RequestBody PostResponseDTO request) 
+            throws ExecutionException, InterruptedException {
         return notificationService.createPostResponse(request);
     }
 
+    // GET ENDPOINTS
     @GetMapping("/recipient/{recipientId}")
-    public List<Notification> getNotificationsByRecipient(
-            @PathVariable String recipientId) throws ExecutionException, InterruptedException {
+    public List<Notification> getNotificationsByRecipient(@PathVariable String recipientId) 
+            throws ExecutionException, InterruptedException {
         return notificationService.getNotificationsByRecipient(recipientId);
     }
 
+    @GetMapping("/recipient/{recipientId}/unread")
+    public List<Notification> getUnreadNotificationsByRecipient(@PathVariable String recipientId) 
+            throws ExecutionException, InterruptedException {
+        return notificationService.getUnreadNotificationsByRecipient(recipientId);
+    }
+
+    @GetMapping("/{notificationId}")
+    public Notification getNotificationById(@PathVariable String notificationId) 
+            throws ExecutionException, InterruptedException {
+        return notificationService.getNotificationById(notificationId);
+    }
+
+    // New endpoint to get notifications with filtering
+    @GetMapping
+    public List<Notification> getNotifications(
+            @RequestParam String recipientId,
+            @RequestParam(required = false) String type,
+            @RequestParam(required = false) Boolean unreadOnly,
+            @RequestParam(required = false) String priority) 
+            throws ExecutionException, InterruptedException {
+        
+        return notificationService.getNotificationsWithFilters(recipientId, type, unreadOnly, priority);
+    }
+
     @PutMapping("/{notificationId}/mark-read")
-    public void markNotificationAsRead(
-            @PathVariable String notificationId) throws ExecutionException, InterruptedException {
+    public void markNotificationAsRead(@PathVariable String notificationId) 
+            throws ExecutionException, InterruptedException {
         notificationService.markNotificationAsRead(notificationId);
+    }
+
+    @GetMapping("/recipient/{recipientId}/formatted")
+    public List<Map<String, Object>> getFormattedNotificationsByRecipient(@PathVariable String recipientId) 
+            throws ExecutionException, InterruptedException {
+        List<Notification> notifications = notificationService.getNotificationsByRecipient(recipientId);
+        return notifications.stream()
+                .map(notificationService::formatNotificationForUI)
+                .collect(Collectors.toList());
+    }
+
+
+    // New endpoint to mark all as read
+    @PutMapping("/mark-all-read")
+    public void markAllAsRead(@RequestParam String recipientId) 
+            throws ExecutionException, InterruptedException {
+        notificationService.markAllAsRead(recipientId);
     }
 }

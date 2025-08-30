@@ -65,7 +65,7 @@ public class TeamRegisterService {
                             registration.setLastName(dtoValidated.lastName());
                             registration.setEmail(volunteerId); // Store volunteerId in email field
                             registration.setLocation(dtoValidated.location() != null ? dtoValidated.location() : "");
-                            registration.setInterests(dtoValidated.interests() != null ? dtoValidated.interests() : "");
+                            registration.setSkills(dtoValidated.skills()); // Add this line
                             registration.setReason(dtoValidated.reason());
                             registration.setTeamId(dtoValidated.teamId());
                             registration.setCreatedAt(Timestamp.now());

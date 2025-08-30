@@ -1,15 +1,20 @@
 package group11.volunteer_skills_bank.utils;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 
 import org.springframework.stereotype.Repository;
 
 import com.google.api.core.ApiFuture;
+import com.google.cloud.firestore.CollectionReference;
+import com.google.cloud.firestore.DocumentSnapshot;
 import com.google.cloud.firestore.Firestore;
+import com.google.cloud.firestore.Query;
 import com.google.cloud.firestore.QueryDocumentSnapshot;
 import com.google.cloud.firestore.Query.Direction;
 import com.google.cloud.firestore.QuerySnapshot;
+
 
 import group11.volunteer_skills_bank.model.Message;
 import reactor.core.publisher.Mono;
@@ -29,14 +34,20 @@ public class MessageCustomRepo {
             .orderBy("sentAt", Direction.DESCENDING)
             .limit(1)
             .get();
+
         try {
-            QueryDocumentSnapshot documentSnapshot = future.get().getDocuments().get(0);
-            Message message = documentSnapshot.toObject(Message.class);
-            return message;
+            QuerySnapshot querySnapshot = future.get();
+            if (querySnapshot.isEmpty()) {
+                return null; // no messages in this chat
+            }
+
+            QueryDocumentSnapshot documentSnapshot = querySnapshot.getDocuments().get(0);
+            return documentSnapshot.toObject(Message.class);
         } catch (Exception e) {
-            throw new RuntimeException("Error fetching latest message", e); 
+            throw new RuntimeException("Error fetching latest message", e);
         }
     }
+
 
     public List<Message> getUnreadMessagesInChatByReaderId(String chatId, String readerId) {
         ApiFuture<QuerySnapshot> future = firestore.collection(COLLECTION_NAME)
@@ -54,4 +65,38 @@ public class MessageCustomRepo {
             throw new RuntimeException("Error fetching unread messages", e);
         }
     }
+
+    public List<Message> fetchMessagesByPages(String chatId, int size, String lastMsgId) {
+        try {
+            CollectionReference messagesRef = firestore.collection(COLLECTION_NAME);
+
+            Query query = messagesRef
+                    .whereEqualTo("chatId", chatId)
+                    .orderBy("sentAt", Direction.DESCENDING)
+                    .limit(size);
+
+            // If we have a last message ID, use it for pagination
+            if (lastMsgId != null && !lastMsgId.isEmpty()) {
+                DocumentSnapshot lastDoc = messagesRef.document(lastMsgId).get().get();
+                if (lastDoc.exists()) {
+                    query = query.startAfter(lastDoc);
+                }
+            }
+
+            ApiFuture<QuerySnapshot> future = query.get();
+            List<QueryDocumentSnapshot> documents = future.get().getDocuments();
+
+            List<Message> messages = new ArrayList<>();
+            for (QueryDocumentSnapshot doc : documents) {
+                Message message = doc.toObject(Message.class);
+                message.setMessageId(doc.getId()); // keep Firestore doc ID if needed
+                messages.add(message);
+            }
+
+            return messages;
+        } catch (Exception e) {
+            throw new RuntimeException("Error fetching messages", e);
+        }
+    }
+
 }

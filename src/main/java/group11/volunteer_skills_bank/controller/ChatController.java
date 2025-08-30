@@ -38,6 +38,13 @@ public class ChatController {
         return chatService.getChat(id);
     }
 
+    @GetMapping("/isExisted/{participant1}/{participant2}")
+    public String getChatIdBetweenParticipants(@PathVariable String participant1, @PathVariable String participant2) {
+        Chat chat = chatService.getChatIdBetweenParticipants(List.of(participant1, participant2));
+        if(chat != null) return chat.getChatId();
+        return null;
+    }
+
     @GetMapping("/user/{userId}")
     public Flux<Chat> getChatsByUserId(@PathVariable String userId) {
         return chatService.getChatsByUserId(userId);
@@ -48,7 +55,7 @@ public class ChatController {
         return chatService.getChatParticipantsDetails(chatId);
     }
 
-    
+    // This endpoint is not currently used in React(I commented out)
     @GetMapping("/user/{userId}/status")
     public ChatParticipantsDto getChatUserStatus(@PathVariable String userId) {
         return chatService.getChatUserStatus(userId);

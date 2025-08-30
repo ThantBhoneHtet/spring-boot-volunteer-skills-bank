@@ -4,6 +4,7 @@ import com.google.api.core.ApiFuture;
 import com.google.cloud.Timestamp;
 import com.google.cloud.firestore.*;
 import group11.volunteer_skills_bank.dto.team.TeamDetailsResponseDto;
+import group11.volunteer_skills_bank.model.Category;
 import group11.volunteer_skills_bank.model.Team;
 import group11.volunteer_skills_bank.model.Volunteer;
 import group11.volunteer_skills_bank.utils.TeamCustomRepo;
@@ -30,9 +31,27 @@ public class TeamService {
     private TeamCustomRepo teamCustomRepo;
 
     /**
+     * Checks if a team name already exists in the database.
+     *
+     * @param teamName The name of the team to check.
+     * @return A Mono emitting true if the team name exists, false otherwise.
+     */
+    private Mono<Boolean> teamNameExists(String teamName) {
+        System.out.println("TeamService: Checking if team name exists: " + teamName);
+        return Mono.fromCallable(() -> {
+            QuerySnapshot querySnapshot = firestore.collection("teams")
+                    .whereEqualTo("name", teamName)
+                    .get()
+                    .get();
+            boolean exists = !querySnapshot.isEmpty();
+            System.out.println("TeamService: Team name '" + teamName + "' exists: " + exists);
+            return exists;
+        }).doOnError(e -> System.err.println("TeamService: Error checking team name existence: " + e.getMessage()));
+    }
+
+    /**
      * Converts a list of email addresses to a list of Volunteer IDs.
      * If any email does not correspond to an existing volunteer, an IllegalArgumentException is thrown.
-     * This ensures that only valid, existing volunteer emails are processed for team members/leaders.
      *
      * @param emails The list of email addresses to convert.
      * @return A Mono emitting a list of Volunteer IDs.
@@ -48,16 +67,14 @@ public class TeamService {
                 .flatMap(email -> teamCustomRepo.getVolunteerByEmail(email.trim())
                         .map(Volunteer::getVolunteerId)
                         .doOnNext(id -> System.out.println("TeamService: Converted email '" + email + "' to ID: " + id))
-                        // Changed to throw an error if a volunteer email is not found
                         .switchIfEmpty(Mono.defer(() -> {
-                            System.err.println("TeamService: Error: Volunteer with email '" + email + "' not found. This email cannot be added to the team.");
+                            System.err.println("TeamService: Error: Volunteer with email '" + email + "' not found.");
                             return Mono.error(new IllegalArgumentException("Volunteer with email '" + email + "' not found."));
                         }))
                 )
                 .collectList()
                 .doOnError(e -> System.err.println("TeamService: Error during email to ID conversion: " + e.getMessage()));
     }
-
 
     public Mono<Team> createTeam(Team team) {
         System.out.println("TeamService: createTeam called for team: " + (team != null ? team.getName() : "null"));
@@ -66,42 +83,70 @@ public class TeamService {
             return Mono.error(new IllegalArgumentException("creatorId is required to create a team."));
         }
 
-        Mono<List<String>> leaderIdsMono = convertEmailsToVolunteerIds(team.getLeaders());
-        Mono<List<String>> memberIdsMono = convertEmailsToVolunteerIds(team.getMembers());
+        // Check if team name already exists
+        return teamNameExists(team.getName())
+                .flatMap(exists -> {
+                    if (exists) {
+                        System.err.println("TeamService: Team name '" + team.getName() + "' already exists.");
+                        return Mono.error(new IllegalArgumentException("Team name '" + team.getName() + "' is already taken. Please choose a different name."));
+                    }
 
-        return teamCustomRepo.getVolunteerById(team.getCreatorId())
-                .switchIfEmpty(Mono.error(new RuntimeException("Creator volunteer not found with ID: " + team.getCreatorId())))
-                .flatMap(creatorVolunteer -> Mono.zip(leaderIdsMono, memberIdsMono)
-                    .flatMap(tuple -> {
-                        List<String> leadersFromEmails = tuple.getT1();
-                        List<String> membersFromEmails = tuple.getT2();
+                    Mono<List<String>> leaderIdsMono = convertEmailsToVolunteerIds(team.getLeaders());
+                    Mono<List<String>> memberIdsMono = convertEmailsToVolunteerIds(team.getMembers());
 
-                        Set<String> leaderIdSet = new HashSet<>(leadersFromEmails);
-                        List<String> distinctMembers = membersFromEmails.stream()
-                                .filter(memberId -> !leaderIdSet.contains(memberId))
-                                .distinct()
-                                .collect(Collectors.toList());
+                    return teamCustomRepo.getVolunteerById(team.getCreatorId())
+                            .switchIfEmpty(Mono.error(new RuntimeException("Creator volunteer not found with ID: " + team.getCreatorId())))
+                            .flatMap(creatorVolunteer -> Mono.zip(leaderIdsMono, memberIdsMono)
+                                .flatMap(tuple -> {
+                                    List<String> leadersFromEmails = tuple.getT1();
+                                    List<String> membersFromEmails = tuple.getT2();
 
-                        team.setLeaders(leadersFromEmails.stream().distinct().collect(Collectors.toList()));
-                        team.setMembers(distinctMembers);
+                                    Set<String> leaderIdSet = new HashSet<>(leadersFromEmails);
+                                    List<String> distinctMembers = membersFromEmails.stream()
+                                            .filter(memberId -> !leaderIdSet.contains(memberId))
+                                            .distinct()
+                                            .collect(Collectors.toList());
 
-                        return Mono.fromCallable(() -> {
-                            DocumentReference docRef = firestore.collection("teams").document();
-                            team.setTeamId(docRef.getId());
-                            team.setCreatedAt(Timestamp.now());
+                                    team.setLeaders(leadersFromEmails.stream().distinct().collect(Collectors.toList()));
+                                    team.setMembers(distinctMembers);
 
-                            System.out.println("TeamService: Saving new team to Firestore: " + team.getName() + " (ID: " + team.getTeamId() + ")");
-                            System.out.println("TeamService: Final Members (IDs): " + team.getMembers() + ", Final Leaders (IDs): " + team.getLeaders());
-                            docRef.set(team).get();
-                            System.out.println("TeamService: Team saved successfully.");
-                            return team;
-                        });
-                    })
-                )
-                .doOnError(e -> System.err.println("TeamService: Error creating team (reactive chain): " + e.getMessage()))
-                .onErrorResume(e -> Mono.error(new RuntimeException("Error creating team: " + e.getMessage(), e)));
+                                    return Mono.fromCallable(() -> {
+                                        DocumentReference docRef = firestore.collection("teams").document();
+                                        team.setTeamId(docRef.getId());
+                                        team.setCreatedAt(Timestamp.now());
+
+                                        System.out.println("TeamService: Saving new team to Firestore: " + team.getName() + " (ID: " + team.getTeamId() + ")");
+                                        System.out.println("TeamService: Final Members (IDs): " + team.getMembers() + ", Final Leaders (IDs): " + team.getLeaders());
+                                        docRef.set(team).get();
+                                        System.out.println("TeamService: Team saved successfully.");
+                                        return team;
+                                    });
+                                })
+                            );
+                });
     }
 
+    /**
+     * Fetches all categories from the database.
+     * @return a Flux of all Category documents.
+     */
+    public Flux<Category> getAllCategories() {
+        System.out.println("TeamService: getAllCategories called.");
+        return Flux.create(sink -> {
+            try {
+                ApiFuture<QuerySnapshot> future = firestore.collection("category").get();
+                List<QueryDocumentSnapshot> documents = future.get().getDocuments();
+                for (QueryDocumentSnapshot document : documents) {
+                    Category category = document.toObject(Category.class);
+                    category.setCategoryId(document.getId());
+                    sink.next(category);
+                }
+                sink.complete();
+            } catch (InterruptedException | ExecutionException e) {
+                sink.error(new RuntimeException("Error fetching categories", e));
+            }
+        });
+    }
 
     public Mono<TeamDetailsResponseDto> getTeam(String teamId) {
         System.out.println("TeamService: getTeam called for teamId: " + teamId);
@@ -175,7 +220,6 @@ public class TeamService {
                 .onErrorResume(e -> Mono.error(new RuntimeException("Error fetching teams member of volunteer: " + e.getMessage(), e)));
     }
 
-
     public Mono<Team> updateMembers(String teamId, List<String> newMemberEmails) {
         System.out.println("TeamService: updateMembers called for teamId: " + teamId + " with new emails: " + newMemberEmails);
         return convertEmailsToVolunteerIds(newMemberEmails)
@@ -191,8 +235,7 @@ public class TeamService {
                     System.out.println("TeamService: Members updated successfully for teamId: " + teamId);
                     return getTeamByIdInternal(teamId);
                 }))
-                .doOnError(e -> System.err.println("TeamService: Error updating members for teamId " + teamId + ": " + e.getMessage()))
-                .onErrorResume(e -> Mono.error(new RuntimeException("Error updating members: " + e.getMessage(), e)));
+                .doOnError(e -> System.err.println("TeamService: Error updating members for teamId " + teamId + ": " + e.getMessage()));
     }
 
     public Mono<Team> addMembers(String teamId, List<String> memberEmailsToAdd) {
@@ -226,10 +269,8 @@ public class TeamService {
                 return getTeamByIdInternal(teamId);
             }))
         )
-        .doOnError(e -> System.err.println("TeamService: Error adding members to team " + teamId + ": " + e.getMessage()))
-        .onErrorResume(e -> Mono.error(new RuntimeException("Error adding members to team: " + e.getMessage(), e)));
+        .doOnError(e -> System.err.println("TeamService: Error adding members to team " + teamId + ": " + e.getMessage()));
     }
-
 
     public Mono<Team> removeMember(String teamId, String memberIdToRemove) {
         System.out.println("TeamService: removeMember called for teamId: " + teamId + ", member ID to remove: " + memberIdToRemove);
@@ -239,8 +280,7 @@ public class TeamService {
             future.get();
             System.out.println("TeamService: Member ID '" + memberIdToRemove + "' removed successfully from teamId: " + teamId);
             return getTeamByIdInternal(teamId);
-        }).doOnError(e -> System.err.println("TeamService: Error removing member " + memberIdToRemove + " from teamId " + teamId + ": " + e.getMessage()))
-                .onErrorResume(e -> Mono.error(new RuntimeException("Error removing member: " + e.getMessage(), e)));
+        }).doOnError(e -> System.err.println("TeamService: Error removing member " + memberIdToRemove + " from teamId " + teamId + ": " + e.getMessage()));
     }
 
     public Mono<Void> deleteTeam(String teamId) {
@@ -249,11 +289,8 @@ public class TeamService {
             firestore.collection("teams").document(teamId).delete().get();
             System.out.println("TeamService: Team " + teamId + " deleted successfully.");
             return null;
-        }).then()
-          .doOnError(e -> System.err.println("TeamService: Error in deleteTeam reactive chain: " + e.getMessage()))
-          .onErrorResume(e -> Mono.error(new RuntimeException("Error deleting team: " + e.getMessage(), e)));
+        }).then();
     }
-
 
     public Mono<Team> updateTeamFields(String teamId, Map<String, Object> updates) {
         System.out.println("TeamService: updateTeamFields called for teamId: " + teamId + " with updates: " + updates);
@@ -294,10 +331,8 @@ public class TeamService {
                     System.out.println("TeamService: Team fields updated successfully for teamId: " + teamId);
                     return getTeamByIdInternal(teamId);
                 }))
-                .doOnError(e -> System.err.println("TeamService: Error updating team fields for teamId " + teamId + ": " + e.getMessage()))
-                .onErrorResume(e -> Mono.error(new RuntimeException("Error updating team fields: " + e.getMessage(), e)));
+                .doOnError(e -> System.err.println("TeamService: Error updating team fields for teamId " + teamId + ": " + e.getMessage()));
     }
-
 
     private Team getTeamByIdInternal(String teamId) throws ExecutionException, InterruptedException {
         System.out.println("TeamService: getTeamByIdInternal called for teamId: " + teamId);
@@ -311,4 +346,6 @@ public class TeamService {
         System.out.println("TeamService: Retrieved team internally: " + team.getName() + " (ID: " + team.getTeamId() + ")");
         return team;
     }
+    
+    
 }

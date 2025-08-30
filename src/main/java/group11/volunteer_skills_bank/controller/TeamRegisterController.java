@@ -102,7 +102,7 @@ public class TeamRegisterController {
                 .onErrorResume(Exception.class, e -> {
                     System.err.println("TeamRegisterController: Error registering for team " + dto.teamId() + ": " + e.getMessage());
                     return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                            .body(Map.of("error", "Failed to register for team due to an internal error")));
+                            .body(Map.of("error", "You have already registered for this team")));
                 });
     }
 
@@ -173,10 +173,12 @@ public class TeamRegisterController {
                             registrationMap.put("lastName", reg.getLastName());
                             registrationMap.put("email", volunteerEmail); // Set the real email here
                             registrationMap.put("reason", reg.getReason());
-                            registrationMap.put("interests", reg.getInterests());
+                            registrationMap.put("skills", reg.getSkills()); // Added this line
                             registrationMap.put("teamId", reg.getTeamId());
                             registrationMap.put("createdAt", reg.getCreatedAt());
                             registrationMap.put("status", status);
+                            registrationMap.put("volunteernotiId", reg.getEmail());
+
                             registrations.add(registrationMap);
                         }
                     }
@@ -428,6 +430,35 @@ public class TeamRegisterController {
                 System.err.println("TeamRegisterController: Error declining registration " + registerId + ": " + e.getMessage());
                 return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                         .body(Map.of("error", "Failed to decline registration: " + e.getMessage()));
+            }
+        });
+    }
+    
+    @PostMapping("/skills/names")
+    public Mono<ResponseEntity<List<Map<String, String>>>> getSkillNamesByIds(@RequestBody List<String> skillIds) {
+        return Mono.fromCallable(() -> {
+            try {
+                List<Map<String, String>> skillNames = new ArrayList<>();
+                for (String skillId : skillIds) {
+                    DocumentSnapshot doc = firestore.collection("skill")
+                            .document(skillId)
+                            .get()
+                            .get();
+                    if (doc.exists()) {
+                        String skillName = doc.getString("skill_name");
+                        if (skillName != null) {
+                            Map<String, String> skillMap = new HashMap<>();
+                            skillMap.put("skillId", skillId);
+                            skillMap.put("skillName", skillName);
+                            skillNames.add(skillMap);
+                        }
+                    }
+                }
+                return ResponseEntity.ok(skillNames);
+            } catch (Exception e) {
+                System.err.println("TeamRegisterController: Error fetching skill names: " + e.getMessage());
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                        .body(null);
             }
         });
     }

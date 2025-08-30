@@ -1,7 +1,11 @@
 package group11.volunteer_skills_bank.utils;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
+import org.apache.commons.codec.digest.DigestUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 
@@ -24,10 +28,15 @@ public class ChatCustomRepo {
         this.firestore = firestore;
     }
 
-    public String getChatIdBetweenParticipants(String participant1, String participant2) {
+    public String getChatIdBetweenParticipants(List<String> participantIds) {
+
+        List<String> sorted = new ArrayList<>(participantIds);
+        Collections.sort(sorted);
+        String key = String.join("_", sorted);
+        String chatId = DigestUtils.sha256Hex(key);
+
         ApiFuture<QuerySnapshot> future = firestore.collection(COLLECTION_NAME)
-            .whereArrayContains("participants", participant1)
-            .whereArrayContains("participants", participant2)
+            .whereEqualTo("chatId", chatId)
             .get();
         try {
             QuerySnapshot querySnapshot = future.get();
@@ -38,6 +47,7 @@ public class ChatCustomRepo {
                 return documentSnapshot.getId();
             }
         } catch (Exception e) {
+            System.out.println(e.getMessage());
             return null;
         }
     }

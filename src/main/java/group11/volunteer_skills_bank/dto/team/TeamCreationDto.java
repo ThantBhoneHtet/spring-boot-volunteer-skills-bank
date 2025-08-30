@@ -7,5 +7,6 @@ public record TeamCreationDto(
     String description,
     List<String> members,
     List<String> leaders,
-    String creatorId
+    String creatorId,
+    String category // New field
 ) {}

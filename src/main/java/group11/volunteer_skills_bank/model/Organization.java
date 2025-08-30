@@ -33,6 +33,8 @@ public class Organization {
     private Integer memberCount;
     private Integer opportunityCount;
     private Double rating;
+    private Boolean isOnline;
+
 
     @Data
     @AllArgsConstructor

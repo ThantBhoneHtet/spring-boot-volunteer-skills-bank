@@ -4,6 +4,7 @@ import group11.volunteer_skills_bank.dto.team.TeamCreationDto;
 import group11.volunteer_skills_bank.dto.team.TeamDetailsResponseDto;
 import group11.volunteer_skills_bank.model.Team;
 import group11.volunteer_skills_bank.model.TeamRegisterTrack;
+import group11.volunteer_skills_bank.model.Category;
 import group11.volunteer_skills_bank.service.TeamService;
 import group11.volunteer_skills_bank.repository.TeamRegisterTrackRepository;
 import com.google.cloud.firestore.Firestore;
@@ -21,7 +22,7 @@ import reactor.core.publisher.Mono;
 
 @RestController
 @RequestMapping("/api/teams")
-@CrossOrigin(origins = "*") // Keep this for CORS
+@CrossOrigin(origins = "*")
 public class TeamController {
 
     @Autowired
@@ -31,27 +32,48 @@ public class TeamController {
     private Firestore firestore;
 
     @Autowired
-    private TeamRegisterTrackRepository teamRegisterTrackRepository; // Added repository
+    private TeamRegisterTrackRepository teamRegisterTrackRepository;
 
     @PostMapping
-    public Mono<ResponseEntity<Team>> createTeam(@RequestBody TeamCreationDto dto) {
+    public Mono<ResponseEntity<Map<String, String>>> createTeam(@RequestBody TeamCreationDto dto) {
         Team team = new Team();
         team.setName(dto.name());
         team.setDescription(dto.description());
         team.setMembers(dto.members());
         team.setLeaders(dto.leaders());
         team.setCreatorId(dto.creatorId());
+        team.setCategory(dto.category()); // Save the new category field
 
         return teamService.createTeam(team)
-                .map(ResponseEntity::ok)
+                .map(savedTeam -> ResponseEntity.ok(Map.of("status", "success", "teamId", savedTeam.getTeamId())))
                 .onErrorResume(IllegalArgumentException.class, e -> {
                     System.err.println("Controller: Bad request for createTeam: " + e.getMessage());
-                    return Mono.just(ResponseEntity.badRequest().build());
+                    // Always return the message to the frontend
+                    if (e.getMessage().contains("Team name") && e.getMessage().contains("already taken")) {
+                        return Mono.just(ResponseEntity
+                            .status(HttpStatus.CONFLICT)
+                            .body(Map.of("error", e.getMessage())));
+                    }
+                    return Mono.just(ResponseEntity
+                        .badRequest()
+                        .body(Map.of("error", e.getMessage())));
                 })
                 .onErrorResume(RuntimeException.class, e -> {
                     System.err.println("Controller: Internal server error for createTeam: " + e.getMessage());
-                    return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build());
+                    return Mono.just(ResponseEntity
+                        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                        .body(Map.of("error", "Unexpected server error. Please try again.")));
                 });
+    }
+
+    @GetMapping("/categories")
+    public Flux<Category> getAllCategories() {
+        System.out.println("TeamController: Received request for /categories");
+        return teamService.getAllCategories()
+            .onErrorResume(RuntimeException.class, e -> {
+                System.err.println("Controller: Error fetching all categories: " + e.getMessage());
+                return Flux.error(new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to retrieve categories.", e));
+            });
     }
 
     @GetMapping("/{id}")

@@ -7,6 +7,7 @@ import lombok.Data;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.cloud.Timestamp;
+import java.util.List;
 
 @Data
 @Document(collectionName = "teamRegister")
@@ -18,20 +19,20 @@ public class TeamRegister {
     private String lastName;
     private String email;
     private String location;
-    private String interests;
+    private List<String> skills;
     private String reason;
     private String teamId;
     private Timestamp createdAt;
 
     public TeamRegister() {}
 
-    public TeamRegister(String registerId, String firstName, String lastName, String email, String location, String interests, String reason, String teamId, Timestamp createdAt) {
+    public TeamRegister(String registerId, String firstName, String lastName, String email, String location, List<String> skills, String reason, String teamId, Timestamp createdAt) {
         this.registerId = registerId;
         this.firstName = firstName;
         this.lastName = lastName;
         this.email = email;
         this.location = location;
-        this.interests = interests;
+        this.skills = skills;
         this.reason = reason;
         this.teamId = teamId;
         this.createdAt = createdAt != null ? createdAt : Timestamp.now();
