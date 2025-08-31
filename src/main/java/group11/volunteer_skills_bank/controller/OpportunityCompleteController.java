@@ -96,6 +96,25 @@ public class OpportunityCompleteController {
         }
     }
     
+    @GetMapping("/completed/all")
+    public ResponseEntity<?> getAllCompletedOpportunities() {
+        try {
+            List<Opportunity> opportunities = opportunityCompleteService.getAllOpportunities();
+            List<Opportunity> completedOpportunities = opportunities.stream()
+                    .filter(opportunity -> "complete".equalsIgnoreCase(opportunity.getStatus()))
+                    .collect(java.util.stream.Collectors.toList());
+
+            if (completedOpportunities.isEmpty()) {
+                logger.info("No completed opportunities found");
+                return ResponseEntity.ok(Collections.emptyList());
+            }
+            return ResponseEntity.ok(completedOpportunities);
+        } catch (ExecutionException | InterruptedException e) {
+            logger.error("Error fetching all completed opportunities: {}", e.getMessage(), e);
+            return ResponseEntity.status(500).body("Failed to fetch completed opportunities: " + e.getMessage());
+        }
+    }
+    
     @GetMapping("/active/team/{teamId}")
     public ResponseEntity<?> getActiveForTeam(@PathVariable String teamId) {
         try {

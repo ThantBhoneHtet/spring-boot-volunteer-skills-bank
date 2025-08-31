@@ -14,6 +14,7 @@ import com.google.cloud.Timestamp;
 import group11.volunteer_skills_bank.dto.organization.OrganizationUpdate;
 import group11.volunteer_skills_bank.model.Organization;
 import group11.volunteer_skills_bank.repository.OrganizationRepo;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 @Service
@@ -31,6 +32,10 @@ public class OrganizationService {
         this.organizationRequestService = organizationRequestService;
         this.passwordEncoder = passwordEncoder;
         this.s3Service = s3Service;
+    }
+    
+    public Flux<Organization> listAll() {
+        return organizationRepo.findAll();
     }
 
     public Mono<Organization> approveRequest(String organizationId) {

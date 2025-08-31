@@ -8,11 +8,13 @@ import org.springframework.web.multipart.MultipartFile;
 import group11.volunteer_skills_bank.dto.organization.OrganizationUpdate;
 import group11.volunteer_skills_bank.model.Organization;
 import group11.volunteer_skills_bank.service.OrganizationService;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.io.IOException;
 import java.util.concurrent.ExecutionException;
 
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -29,6 +31,12 @@ public class OrganizationController
     public OrganizationController(OrganizationService organizationService) {
         this.organizationService = organizationService;
     }
+    
+    @GetMapping
+    public ResponseEntity<Flux<Organization>> listAllOrganizations() {
+        return ResponseEntity.ok(organizationService.listAll());
+    }
+    
     @GetMapping("/{id}")
     public Mono<Organization> getMethodName(@PathVariable String id) {
         return organizationService.findOrganization(id);
