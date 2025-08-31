@@ -1,6 +1,8 @@
 package group11.volunteer_skills_bank.service;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ExecutionException;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -65,7 +67,7 @@ public class VolunteerService {
         return volunteerRepository.findAll();
     }
 
-    public Mono<Volunteer> updateVolunteer(String id, VolunteerUpdateDto dto, MultipartFile image)
+    public Mono<Volunteer> updateVolunteer(String id, VolunteerUpdateDto dto, MultipartFile image,List<MultipartFile> certificateFiles)
             throws IOException, ExecutionException, InterruptedException { // Declare exceptions to be thrown
 
         Volunteer volunteer = volunteerRepository.findById(id).block(); // Block and get the volunteer
@@ -99,7 +101,7 @@ public class VolunteerService {
                     : (volunteer.getLocation() != null ? volunteer.getLocation().getCity() : null);
             String country = dto.location().country() != null ? dto.location().country()
                     : (volunteer.getLocation() != null ? volunteer.getLocation().getCoutry() : null);
-            volunteer.setLocation(new Volunteer.Location(city, country));
+            volunteer.setLocation(new Volunteer.Location(country,city));
         }
 
         if (dto.bio() != null) {
@@ -108,10 +110,18 @@ public class VolunteerService {
         if (dto.skills() != null) {
             volunteer.setSkills(dto.skills());
         }
-        if (dto.certifications() != null) {
-            volunteer.setCertifications(dto.certifications());
+        if (certificateFiles != null && !certificateFiles.isEmpty()) {
+            List<String> certificationUrls = new ArrayList<>();
+            for (MultipartFile file : certificateFiles) {
+                String fileUrl = s3Service.uploadFile(file); // Upload and get URL
+                certificationUrls.add(fileUrl);
+            }
+            volunteer.setCertifications(certificationUrls);
+        } else if (dto.certifications() != null) {
+            volunteer.setCertifications(dto.certifications()); // Keep existing behavior if URLs provided directly
         }
-        if(dto.phoneNumber() != null) {
+
+        if (dto.phoneNumber() != null) {
             volunteer.setPhoneNumber(dto.phoneNumber());
         }
 
@@ -149,8 +159,7 @@ public class VolunteerService {
 
     public Volunteer login(String email, String password) {
         Volunteer volunteer = volunteerRepository.findByEmail(email).block();
-        if (volunteer != null && password.equals(volunteer.getPassword())) 
-        {
+        if (volunteer != null && password.equals(volunteer.getPassword())) {
             return volunteer;
         }
 
@@ -179,10 +188,10 @@ public class VolunteerService {
 
     public void updateStauts(String id, String status) {
         Volunteer volunteer = volunteerRepository.findById(id).block();
-        if(volunteer!=null) {
+        if (volunteer != null) {
             volunteer.setStatus(status);
             volunteerRepository.save(volunteer).block();
         }
     }
-    
+
 }

@@ -56,10 +56,11 @@ public class VolunteerController {
     public ResponseEntity<Mono<Volunteer>> updateVolunteer(
             @PathVariable String id,
             @RequestPart("dto") VolunteerUpdateDto dto,
-            @RequestPart(value = "image", required = false) MultipartFile image
+            @RequestPart(value = "image", required = false) MultipartFile image,
+            @RequestPart(value = "certificateFiles", required = false) List<MultipartFile> certificateFiles
     ) {
         try {
-            return ResponseEntity.ok(volunteerService.updateVolunteer(id, dto, image));
+            return ResponseEntity.ok(volunteerService.updateVolunteer(id, dto, image,certificateFiles));
         } catch (IOException | ExecutionException | InterruptedException e) {
             return ResponseEntity.internalServerError().body(Mono.empty());
         }
