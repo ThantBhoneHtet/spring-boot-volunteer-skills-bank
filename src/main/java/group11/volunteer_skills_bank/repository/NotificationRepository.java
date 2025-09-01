@@ -51,10 +51,10 @@ public class NotificationRepository {
     }
 
     public List<Notification> findWithFilters(String recipientId, String type, 
-            Boolean unreadOnly, String priority) throws ExecutionException, InterruptedException {
-        
+        Boolean unreadOnly, String priority) throws ExecutionException, InterruptedException {
+
         Query query = firestore.collection(COLLECTION_NAME)
-                .whereEqualTo("recipientId", recipientId)
+                .whereArrayContains("recipientIds", recipientId) // Use arrayContains for lists
                 .orderBy("timestamp", Query.Direction.DESCENDING);
 
         if (type != null && !type.equals("all")) {
@@ -64,9 +64,6 @@ public class NotificationRepository {
         if (unreadOnly != null && unreadOnly) {
             query = query.whereEqualTo("read", false);
         }
-
-        // Priority filtering would need to be handled in application logic
-        // since it's not stored in the database
 
         return query.get()
                 .get()
