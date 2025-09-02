@@ -5,14 +5,8 @@ public record OrganizationRequestDto(
     String email,
     String organizationName,
     String organizationType,
+    String address,
     String password,
-    String description,
-    Location location
+    String description
 ) 
-
-{
-    public record Location(
-    String country,
-    String city
-    ){}
-}
+{}

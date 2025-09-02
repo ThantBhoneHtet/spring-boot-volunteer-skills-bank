@@ -19,18 +19,10 @@ public class OrganizationRequest
     private String email;
     private String organizationName;
     private String organizationType;
+    private String address;
     private String password;
     private String description;
     private String status;
     private Timestamp createdAt;
     private String rejectionReason;
-    private Location location;
-
-    @Data
-    @AllArgsConstructor
-    @NoArgsConstructor
-    public static class Location {
-        private String country;
-        private String city;
-    }
 }

@@ -48,6 +48,11 @@ public class OpportunityService {
     public Mono<Opportunity> update(String id, Opportunity update) {
         return opportunityRepository.findById(id)
                 .flatMap(existing -> {
+                    // Check if approvalStatus is pending
+                    if (!"pending".equals(existing.getApprovalStatus())) {
+                        return Mono.error(new IllegalStateException("Cannot edit approved or rejected opportunities"));
+                    }
+                    
                     // Security check: Only organization owners can edit their own posts
                     // This prevents admins from editing posts
                     if (existing.getOrganizationId() == null || update.getOrganizationId() == null) {
@@ -216,5 +221,3 @@ public class OpportunityService {
                 }));
     }
 }
-
-
