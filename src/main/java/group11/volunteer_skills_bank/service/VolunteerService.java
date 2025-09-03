@@ -55,6 +55,7 @@ public class VolunteerService {
         volunteer.setRating(0.0);
         volunteer.setTotalHours(0);
         volunteer.setCreatedAt(Timestamp.now());
+        volunteer.setStatus("active");
         return volunteerRepository.save(volunteer);
 
     }
