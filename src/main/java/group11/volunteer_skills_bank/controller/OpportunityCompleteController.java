@@ -1,15 +1,20 @@
 package group11.volunteer_skills_bank.controller;
 
+import group11.volunteer_skills_bank.dto.feedback.FeedbackDto;
 import group11.volunteer_skills_bank.model.Opportunity;
+import group11.volunteer_skills_bank.service.FeedbackService;
 import group11.volunteer_skills_bank.service.OpportunityCompleteService;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
 @RestController
@@ -20,6 +25,9 @@ public class OpportunityCompleteController {
 
     private static final Logger logger = LoggerFactory.getLogger(OpportunityCompleteController.class);
     private final OpportunityCompleteService opportunityCompleteService;
+
+    @Autowired
+    private FeedbackService feedbackService;
 
     @GetMapping("/completed/volunteer/{volunteerId}")
     public ResponseEntity<?> getCompletedForVolunteer(@PathVariable String volunteerId) {
@@ -129,4 +137,35 @@ public class OpportunityCompleteController {
             return ResponseEntity.status(500).body("Failed to fetch active opportunities: " + e.getMessage());
         }
     }
+
+    @PostMapping("/{id}/feedback")
+    public ResponseEntity<?> giveFeedback(@PathVariable String id, @RequestBody FeedbackDto feedbackDto) {
+        Opportunity opportunity = opportunityCompleteService.getOpportunity(id);
+        if (opportunity == null) {
+            return ResponseEntity.badRequest().body("No such opportunity with id " + id);
+        }
+
+        // Initialize feedback map if null
+        Map<String, String> feedback = opportunity.getFeedback();
+        if (feedback == null) {
+            feedback = new HashMap<>();
+            opportunity.setFeedback(feedback);
+        }
+
+        // Add or update feedback
+        feedback.put(feedbackDto.revieweeId(), feedbackDto.feedback());
+
+        // Persist the updated opportunity (important!)
+        opportunityCompleteService.updateOpportunity(opportunity);
+
+        try {
+            feedbackService.handleFeedback(id, feedbackDto);
+        }catch(Exception e) {
+            System.out.println(e.getMessage());
+            return ResponseEntity.internalServerError().body("Something went wrong.");
+        }
+
+        return ResponseEntity.ok("Feedback sent successfully.");
+    }
+
 }

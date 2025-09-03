@@ -31,7 +31,7 @@ public class Volunteer {
     private List<String> availability;
     private Integer totalHours;
     private Integer completedOpportunities;
-    private Double rating;
+    private Float rating;
     private Timestamp lastActive;
     private Boolean isOnline;
 

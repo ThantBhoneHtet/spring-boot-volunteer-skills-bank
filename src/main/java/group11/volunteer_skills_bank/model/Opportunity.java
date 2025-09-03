@@ -8,6 +8,7 @@ import com.google.cloud.firestore.annotation.PropertyName;
 import com.google.cloud.spring.data.firestore.Document;
 
 import lombok.Data;
+import java.util.Map;
 
 @Data
 @Document(collectionName = "opportunities")
@@ -35,6 +36,7 @@ public class Opportunity {
     private Integer volunteersNeeded;
      
     private List<String> categories;
+    private Map<String,String> feedback;
     private String status = "active";
     private String approvalStatus = "pending";
     
