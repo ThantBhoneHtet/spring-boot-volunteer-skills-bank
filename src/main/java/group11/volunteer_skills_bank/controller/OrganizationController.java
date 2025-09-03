@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 
 
 @RestController
@@ -29,6 +30,7 @@ public class OrganizationController
     public OrganizationController(OrganizationService organizationService) {
         this.organizationService = organizationService;
     }
+    
     @GetMapping("/{id}")
     public Mono<Organization> getMethodName(@PathVariable String id) {
         return organizationService.findOrganization(id);
@@ -43,4 +45,18 @@ public class OrganizationController
         return organizationService.updateOrganization(id, dto, image);
     }
     
+    @DeleteMapping("/{id}")
+    public Mono<Void> deleteOrganization(@PathVariable String id) {
+        return organizationService.deleteOrganization(id);
+    }
+
+    @GetMapping("/{id}/stats")
+    public Mono<java.util.Map<String, Object>> getOrganizationStats(@PathVariable String id) {
+        return organizationService.getOrganizationStats(id);
+    }
+
+    @GetMapping("/{id}/opportunities")
+    public Mono<java.util.List<java.util.Map<String, Object>>> getOrganizationOpportunities(@PathVariable String id) {
+        return organizationService.getOrganizationOpportunities(id);
+    }
 }

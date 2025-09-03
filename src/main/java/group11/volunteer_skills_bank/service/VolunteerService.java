@@ -52,7 +52,7 @@ public class VolunteerService {
         volunteer.setLastName(dto.lastName());
         volunteer.setPassword(dto.password());
         volunteer.setCompletedOpportunities(0);
-        volunteer.setRating(0.0);
+        volunteer.setRating(0.0f);
         volunteer.setTotalHours(0);
         volunteer.setCreatedAt(Timestamp.now());
         volunteer.setStatus("active");

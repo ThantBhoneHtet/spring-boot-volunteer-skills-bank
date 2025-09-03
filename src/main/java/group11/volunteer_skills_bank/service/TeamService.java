@@ -347,5 +347,70 @@ public class TeamService {
         return team;
     }
     
+    /**
+     * Finds a team by its name.
+     *
+     * @param teamName The name of the team to find.
+     * @return A Mono containing the team if found, empty otherwise.
+     */
+    public Mono<Team> findTeamByName(String teamName) {
+        System.out.println("TeamService: findTeamByName called for teamName: " + teamName);
+        return Mono.fromCallable(() -> {
+            QuerySnapshot querySnapshot = firestore.collection("teams")
+                    .whereEqualTo("name", teamName)
+                    .get().get();
+            
+            if (querySnapshot.isEmpty()) {
+                System.out.println("TeamService: No team found with name: " + teamName);
+                return null;
+            }
+            
+            DocumentSnapshot snapshot = querySnapshot.getDocuments().get(0);
+            Team team = snapshot.toObject(Team.class);
+            team.setTeamId(snapshot.getId());
+            System.out.println("TeamService: Found team: " + team.getName() + " (ID: " + team.getTeamId() + ")");
+            return team;
+        })
+        .doOnError(e -> System.err.println("TeamService: Error finding team by name " + teamName + ": " + e.getMessage()))
+        .onErrorResume(e -> Mono.error(new RuntimeException("Error finding team by name: " + e.getMessage(), e)));
+    }
+
+    /**
+     * Validates if a volunteer is a leader of a specific team by team name.
+     * Returns specific validation results to distinguish between different error scenarios.
+     *
+     * @param volunteerId The volunteer ID to check.
+     * @param teamName The name of the team to validate leadership for.
+     * @return A Mono<String> with validation result: "valid", "team_not_found", or "not_leader"
+     */
+    public Mono<String> validateVolunteerTeamLeadership(String volunteerId, String teamName) {
+        System.out.println("TeamService: validateVolunteerTeamLeadership called for volunteerId: " + volunteerId + ", teamName: " + teamName);
+        return findTeamByName(teamName)
+                .map(team -> {
+                    if (team == null) {
+                        System.out.println("TeamService: Team not found: " + teamName);
+                        return "team_not_found";
+                    }
+                    boolean isLeader = team.getLeaders() != null && team.getLeaders().contains(volunteerId);
+                    System.out.println("TeamService: Volunteer " + volunteerId + " is leader of team " + teamName + ": " + isLeader);
+                    return isLeader ? "valid" : "not_leader";
+                })
+                .switchIfEmpty(Mono.just("team_not_found"))
+                .doOnError(e -> System.err.println("TeamService: Error validating leadership for volunteer " + volunteerId + " in team " + teamName + ": " + e.getMessage()))
+                .onErrorReturn("error");
+    }
+
+    /**
+     * Validates if a volunteer is a leader of a specific team by team name.
+     *
+     * @param volunteerId The volunteer ID to check.
+     * @param teamName The name of the team to validate leadership for.
+     * @return A Mono<Boolean> indicating if the volunteer is a leader of the specified team.
+     */
+    public Mono<Boolean> isVolunteerLeaderOfTeam(String volunteerId, String teamName) {
+        return validateVolunteerTeamLeadership(volunteerId, teamName)
+                .map(result -> "valid".equals(result));
+    }
+    
     
 }

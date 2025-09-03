@@ -3,9 +3,11 @@ package group11.volunteer_skills_bank.service;
 import com.google.api.core.ApiFuture;
 import com.google.cloud.firestore.*;
 import group11.volunteer_skills_bank.model.Opportunity;
+import group11.volunteer_skills_bank.repository.OpportunityCompleteRepository;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -21,6 +23,17 @@ public class OpportunityCompleteService {
     private static final Logger logger = LoggerFactory.getLogger(OpportunityCompleteService.class);
     private static final int MAX_IN_CLAUSE_SIZE = 10; // Firestore limit for IN queries
     private final Firestore firestore;
+
+    @Autowired
+    private OpportunityCompleteRepository opportunityCompleteRepository;
+
+    public Opportunity getOpportunity(String id) {
+        return opportunityCompleteRepository.findById(id).block();
+    }
+
+    public Opportunity updateOpportunity(Opportunity opportunity) {
+        return opportunityCompleteRepository.save(opportunity).block();
+    }
 
     public List<Opportunity> getCompletedOpportunitiesForVolunteer(String volunteerId)
             throws ExecutionException, InterruptedException {

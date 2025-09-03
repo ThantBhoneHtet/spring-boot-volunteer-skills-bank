@@ -1,19 +1,37 @@
 package group11.volunteer_skills_bank.controller;
 
+
 import java.io.IOException;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.ExecutionException;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import group11.volunteer_skills_bank.dto.feedback.TopRatingVolunteersDto;
 import group11.volunteer_skills_bank.dto.volunteer.VolunteerCreationDto;
 import group11.volunteer_skills_bank.dto.volunteer.VolunteerUpdateDto;
+import group11.volunteer_skills_bank.model.Feedback;
+import group11.volunteer_skills_bank.model.Organization;
 import group11.volunteer_skills_bank.model.Volunteer;
+import group11.volunteer_skills_bank.service.FeedbackService;
+import group11.volunteer_skills_bank.service.OrganizationService;
 import group11.volunteer_skills_bank.service.VolunteerService;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -25,6 +43,12 @@ public class VolunteerController {
     
     @Autowired
     private VolunteerService volunteerService;
+
+    @Autowired
+    private FeedbackService feedbackService;
+
+    @Autowired
+    private OrganizationService organizationService;
 
     @PostMapping
     public ResponseEntity<?> createVolunteer(@RequestBody VolunteerCreationDto dto) {
@@ -96,4 +120,77 @@ public class VolunteerController {
             return ResponseEntity.internalServerError().body(Map.of("message", "Error updating status"));
         }
     }
+
+   @GetMapping("/top-rated-volunteers") 
+    public ResponseEntity<?> getTopRatedVolunteers(@RequestBody(required = false) Map<String, Object> filters) {
+        List<Feedback> feedbacks;
+
+        try {
+            feedbacks = feedbackService.getTopRatedVolunteers(filters);
+            System.out.println("Fetched feedbacks: " + (feedbacks != null ? feedbacks.size() : "null"));
+
+            List<TopRatingVolunteersDto> topRatingVolunteersDtos = feedbacks.stream()
+                .map(feedback -> {
+                    if (feedback == null) {
+                        System.out.println("Null feedback found!");
+                        return null;
+                    }
+
+                    System.out.println("Processing feedbackId: " + feedback.getFeedbackId());
+
+                    Volunteer volunteer = volunteerService.getVolunteer(feedback.getFeedbackId())
+                                                        .blockOptional()
+                                                        .orElse(null);
+                    if (volunteer == null) {
+                        System.out.println("Volunteer not found for feedbackId: " + feedback.getFeedbackId());
+                        return null;
+                    }
+
+                    List<TopRatingVolunteersDto.FeedbackDetail> feedbackDetails =
+                        Optional.ofNullable(feedback.getFeedbackDetialsList())
+                                .orElse(Collections.emptyList())
+                                .stream()
+                                .map(detail -> {
+                                    System.out.println("Processing feedbackDetail for opportunityId: " + detail.getOpportunityId());
+                                    Organization org = organizationService.findOrganization(detail.getReviewerId())
+                                                                        .blockOptional()
+                                                                        .orElse(null);
+                                    if (org == null) {
+                                        System.out.println("Organization not found for reviewerId: " + detail.getReviewerId());
+                                    }
+                                    return new TopRatingVolunteersDto.FeedbackDetail(
+                                        detail.getOpportunityId(),
+                                        detail.getReviewerId(),
+                                        org != null ? org.getOrganizationName() : null,
+                                        org != null ? org.getLogoUrl() : null,
+                                        detail.getFeedbackText(),
+                                        detail.getScore(),
+                                        detail.getConfidence()
+                                    );
+                                })
+                                .toList();
+
+                    return new TopRatingVolunteersDto(
+                        volunteer.getVolunteerId(),
+                        volunteer.getFirstName(),
+                        volunteer.getLastName(),
+                        volunteer.getAvatarUrl(),
+                        volunteer.getTotalHours(),
+                        feedback.getWeightedAverageScore(),
+                        feedbackDetails
+                    );
+                })
+                .filter(Objects::nonNull)
+                .toList();
+
+            System.out.println("Successfully built TopRatingVolunteersDto list: " + topRatingVolunteersDtos.size());
+
+            return ResponseEntity.ok(topRatingVolunteersDtos);
+        } catch (Exception e) {
+            System.out.println("Exception occurred: " + e.getMessage());
+            e.printStackTrace();
+            throw new RuntimeException("Error fetching top-rated volunteers", e);
+        }
+    }
+
 }

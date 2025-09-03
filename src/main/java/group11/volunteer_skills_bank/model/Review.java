@@ -11,7 +11,6 @@ import lombok.Data;
 public class Review {
     @DocumentId
     private String reviewId;
-    
     private String reviewerId;
     private String revieweeId;
     private String opportunityId;

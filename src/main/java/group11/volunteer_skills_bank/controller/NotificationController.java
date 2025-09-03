@@ -13,7 +13,7 @@ import java.util.concurrent.ExecutionException;
 
 @RestController
 @RequestMapping("/api/notifications")
-@CrossOrigin(origins = "*") 
+@CrossOrigin(origins = "*")
 public class NotificationController {
     private final NotificationService notificationService;
 
@@ -57,6 +57,25 @@ public class NotificationController {
     public String createPostResponse(@RequestBody PostResponseDTO request) 
             throws ExecutionException, InterruptedException {
         return notificationService.createPostResponse(request);
+    }
+
+    // REJECTION ENDPOINTS
+    @PostMapping("/application/reject")
+    public String rejectApplication(@RequestBody RejectionRequestDTO rejectionRequest) 
+            throws ExecutionException, InterruptedException {
+        return notificationService.rejectApplication(rejectionRequest);
+    }
+
+    @PostMapping("/team-registration/reject")
+    public String rejectTeamRegistration(@RequestBody RejectionRequestDTO rejectionRequest) 
+            throws ExecutionException, InterruptedException {
+        return notificationService.rejectTeamRegistration(rejectionRequest);
+    }
+
+    @PostMapping("/post/reject")
+    public String rejectPost(@RequestBody RejectionRequestDTO rejectionRequest) 
+            throws ExecutionException, InterruptedException {
+        return notificationService.rejectPost(rejectionRequest);
     }
 
     // GET ENDPOINTS
