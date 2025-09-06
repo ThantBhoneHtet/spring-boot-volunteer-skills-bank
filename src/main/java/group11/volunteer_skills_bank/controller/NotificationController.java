@@ -13,7 +13,8 @@ import java.util.concurrent.ExecutionException;
 
 @RestController
 @RequestMapping("/api/notifications")
-@CrossOrigin(origins = "*")
+@CrossOrigin(origins = "http://localhost:8081", allowCredentials = "true")
+
 public class NotificationController {
     private final NotificationService notificationService;
 
@@ -21,11 +22,21 @@ public class NotificationController {
         this.notificationService = notificationService;
     }
 
-    // REQUEST ENDPOINTS
     @PostMapping("/application-request")
     public String createApplicationRequest(@RequestBody ApplicationRequestDTO request) 
             throws ExecutionException, InterruptedException {
-        return notificationService.createApplicationRequest(request);
+        
+        System.out.println("Received ApplicationRequestDTO:");
+        System.out.println("Team Name: " + request.getTeamName());
+        System.out.println("Volunteer Name: " + request.getVolunteerName());
+        System.out.println("Opportunity Name: " + request.getOpportunityName());
+        
+        try {
+            return notificationService.createApplicationRequest(request);
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw e;
+        }
     }
 
     @PostMapping("/team-registration-request")

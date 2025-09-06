@@ -25,12 +25,15 @@ public class NotificationService {
         Notification notification = new Notification();
         notification.setType("application_request");
         
-        if (dto.getTeamId() != null) {
+        // In createApplicationRequest method:
+        if (dto.getTeamName() != null && !dto.getTeamName().isEmpty()) {
             notification.setTitle("New Team Application");
             notification.setContent(String.format("%s applied for %s", dto.getTeamName(), dto.getOpportunityName()));
         } else {
             notification.setTitle("New Volunteer Application");
-            notification.setContent(String.format("%s applied for %s", dto.getVolunteerName(), dto.getOpportunityName()));
+            notification.setContent(String.format("%s applied for %s", 
+                dto.getVolunteerName() != null ? dto.getVolunteerName() : "A volunteer", 
+                dto.getOpportunityName()));
         }
         
         setBaseFields(notification, dto);
