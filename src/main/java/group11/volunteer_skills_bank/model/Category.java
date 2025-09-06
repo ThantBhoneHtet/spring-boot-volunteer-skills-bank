@@ -6,7 +6,7 @@ import com.google.cloud.spring.data.firestore.Document;
 import lombok.Data;
 
 @Data
-@Document(collectionName = "category")
+@Document(collectionName = "categories")
 public class Category {
     @DocumentId
     private String categoryId;

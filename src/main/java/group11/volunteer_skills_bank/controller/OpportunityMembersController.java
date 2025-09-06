@@ -78,39 +78,104 @@ public class OpportunityMembersController {
      * @param opportunityId The ID of the opportunity.
      * @return A Mono with a ResponseEntity containing the volunteer count.
      */
-   @GetMapping("/opportunity/{opportunityId}/volunteer-count")
-public Mono<ResponseEntity<Map<String, Object>>> getVolunteerCount(@PathVariable String opportunityId) {
-    System.out.println("OpportunityMembersController: Fetching volunteer count for opportunity ID: " + opportunityId);
-    if (opportunityId == null || opportunityId.trim().isEmpty()) {
-        Map<String, Object> errorResponse = new java.util.HashMap<>();
-        errorResponse.put("error", "Opportunity ID cannot be null or empty");
-        return Mono.just(ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse));
+    @GetMapping("/opportunity/{opportunityId}/volunteer-count")
+    public Mono<ResponseEntity<Map<String, Object>>> getVolunteerCount(@PathVariable String opportunityId) {
+        System.out.println("OpportunityMembersController: Fetching volunteer count for opportunity ID: " + opportunityId);
+        if (opportunityId == null || opportunityId.trim().isEmpty()) {
+            Map<String, Object> errorResponse = new java.util.HashMap<>();
+            errorResponse.put("error", "Opportunity ID cannot be null or empty");
+            return Mono.just(ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse));
+        }
+
+        return opportunityMembersService.getByOpportunityId(opportunityId)
+                .map(members -> {
+                    int volunteerCount = members.getVolunteers() != null ? members.getVolunteers().size() : 0;
+                    int teamCount = members.getTeams() != null ? members.getTeams().size() : 0;
+                    Map<String, Object> response = new java.util.HashMap<>();
+                    response.put("opportunityId", opportunityId);
+                    response.put("volunteerCount", volunteerCount);
+                    response.put("teamCount", teamCount);
+                    response.put("totalMembers", volunteerCount + teamCount);
+                    return ResponseEntity.ok(response);
+                })
+                .switchIfEmpty(Mono.fromSupplier(() -> {
+                    Map<String, Object> response = new java.util.HashMap<>();
+                    response.put("opportunityId", opportunityId);
+                    response.put("volunteerCount", 0);
+                    response.put("teamCount", 0);
+                    response.put("totalMembers", 0);
+                    return ResponseEntity.ok(response);
+                }))
+                .onErrorResume(Exception.class, e -> {
+                    System.err.println("OpportunityMembersController: Error fetching volunteer count for opportunity ID " + opportunityId + ": " + e.getMessage());
+                    Map<String, Object> errorResponse = new java.util.HashMap<>();
+                    errorResponse.put("error", "Failed to fetch volunteer count: " + e.getMessage());
+                    return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse));
+                });
     }
 
-    return opportunityMembersService.getByOpportunityId(opportunityId)
-            .map(members -> {
-                int volunteerCount = members.getVolunteers() != null ? members.getVolunteers().size() : 0;
-                int teamCount = members.getTeams() != null ? members.getTeams().size() : 0;
-                Map<String, Object> response = new java.util.HashMap<>();
-                response.put("opportunityId", opportunityId);
-                response.put("volunteerCount", volunteerCount);
-                response.put("teamCount", teamCount);
-                response.put("totalMembers", volunteerCount + teamCount);
-                return ResponseEntity.ok(response);
-            })
-            .switchIfEmpty(Mono.fromSupplier(() -> {
-                Map<String, Object> response = new java.util.HashMap<>();
-                response.put("opportunityId", opportunityId);
-                response.put("volunteerCount", 0);
-                response.put("teamCount", 0);
-                response.put("totalMembers", 0);
-                return ResponseEntity.ok(response);
-            }))
-            .onErrorResume(Exception.class, e -> {
-                System.err.println("OpportunityMembersController: Error fetching volunteer count for opportunity ID " + opportunityId + ": " + e.getMessage());
-                Map<String, Object> errorResponse = new java.util.HashMap<>();
-                errorResponse.put("error", "Failed to fetch volunteer count: " + e.getMessage());
-                return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse));
-            });
-}
+    /**
+     * Checks if a user is an approved member of a specific opportunity.
+     *
+     * @param opportunityId The ID of the opportunity.
+     * @param userEmail The email of the user to check.
+     * @return A Mono with a ResponseEntity containing membership status.
+     */
+    @GetMapping("/opportunity/{opportunityId}/is-member/{userEmail}")
+    public Mono<ResponseEntity<Map<String, Object>>> isUserMemberOfOpportunity(
+            @PathVariable String opportunityId, 
+            @PathVariable String userEmail) {
+        System.out.println("OpportunityMembersController: Checking membership for user " + userEmail + " in opportunity " + opportunityId);
+        
+        if (opportunityId == null || opportunityId.trim().isEmpty() || 
+            userEmail == null || userEmail.trim().isEmpty()) {
+            Map<String, Object> errorResponse = new java.util.HashMap<>();
+            errorResponse.put("error", "Opportunity ID and user email cannot be null or empty");
+            errorResponse.put("isMember", false);
+            return Mono.just(ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse));
+        }
+
+        return opportunityMembersService.getByOpportunityId(opportunityId)
+                .map(members -> {
+                    boolean isMember = false;
+                    String membershipType = "none";
+                    
+                    // Check if user is in volunteers list
+                    if (members.getVolunteers() != null && members.getVolunteers().contains(userEmail)) {
+                        isMember = true;
+                        membershipType = "individual";
+                    }
+                    
+                    // Check if user is part of any approved team
+                    // Note: This is a simplified check. In a real implementation, you might need
+                    // to check team membership through a separate service
+                    if (!isMember && members.getTeams() != null && !members.getTeams().isEmpty()) {
+                        // For now, we'll assume team membership check would be done via TeamService
+                        // This is a placeholder that could be enhanced with actual team membership validation
+                        membershipType = "team_check_needed";
+                    }
+                    
+                    Map<String, Object> response = new java.util.HashMap<>();
+                    response.put("opportunityId", opportunityId);
+                    response.put("userEmail", userEmail);
+                    response.put("isMember", isMember);
+                    response.put("membershipType", membershipType);
+                    return ResponseEntity.ok(response);
+                })
+                .switchIfEmpty(Mono.fromSupplier(() -> {
+                    Map<String, Object> response = new java.util.HashMap<>();
+                    response.put("opportunityId", opportunityId);
+                    response.put("userEmail", userEmail);
+                    response.put("isMember", false);
+                    response.put("membershipType", "none");
+                    return ResponseEntity.ok(response);
+                }))
+                .onErrorResume(Exception.class, e -> {
+                    System.err.println("OpportunityMembersController: Error checking membership for user " + userEmail + " in opportunity " + opportunityId + ": " + e.getMessage());
+                    Map<String, Object> errorResponse = new java.util.HashMap<>();
+                    errorResponse.put("error", "Failed to check membership: " + e.getMessage());
+                    errorResponse.put("isMember", false);
+                    return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse));
+                });
+    }
 }

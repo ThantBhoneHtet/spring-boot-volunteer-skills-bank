@@ -134,7 +134,7 @@ public class TeamService {
         System.out.println("TeamService: getAllCategories called.");
         return Flux.create(sink -> {
             try {
-                ApiFuture<QuerySnapshot> future = firestore.collection("category").get();
+                ApiFuture<QuerySnapshot> future = firestore.collection("categories").get();
                 List<QueryDocumentSnapshot> documents = future.get().getDocuments();
                 for (QueryDocumentSnapshot document : documents) {
                     Category category = document.toObject(Category.class);

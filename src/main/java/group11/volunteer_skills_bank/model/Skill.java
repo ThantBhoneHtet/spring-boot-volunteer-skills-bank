@@ -6,7 +6,7 @@ import com.google.cloud.spring.data.firestore.Document;
 import lombok.Data;
 
 @Data
-@Document(collectionName = "skill")
+@Document(collectionName = "skills")
 public class Skill {
     @DocumentId
     private String skillId;

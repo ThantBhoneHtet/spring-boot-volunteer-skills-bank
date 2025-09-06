@@ -440,7 +440,7 @@ public class TeamRegisterController {
             try {
                 List<Map<String, String>> skillNames = new ArrayList<>();
                 for (String skillId : skillIds) {
-                    DocumentSnapshot doc = firestore.collection("skill")
+                    DocumentSnapshot doc = firestore.collection("skills")
                             .document(skillId)
                             .get()
                             .get();
