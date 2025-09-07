@@ -224,4 +224,19 @@ public class TeamController {
                     return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build());
                 });
     }
+
+    @GetMapping("/name/{name}")
+    public ResponseEntity<String> getTeamIdByName(@PathVariable String name) {
+        try {
+            String teamId = teamService.getTeamIdByName(name);
+            if (teamId != null) {
+                return ResponseEntity.ok(teamId);
+            } else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("No team found with name: " + name);
+            }
+        } catch (Exception e) {
+            System.err.println("Controller: Error fetching team ID by name " + name + ": " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to retrieve team ID.");
+        }
+    }
 }

@@ -38,12 +38,20 @@ public class ChatController {
         return chatService.getChat(id);
     }
 
-    @GetMapping("/isExisted/{participant1}/{participant2}")
-    public String getChatIdBetweenParticipants(@PathVariable String participant1, @PathVariable String participant2) {
-        Chat chat = chatService.getChatIdBetweenParticipants(List.of(participant1, participant2));
-        if(chat != null) return chat.getChatId();
-        return null;
+    // @GetMapping("/isExisted/{participant1}/{participant2}")
+    // public String getChatIdBetweenParticipants(@PathVariable String participant1, @PathVariable String participant2) {
+    //     Chat chat = chatService.getChatIdBetweenParticipants(List.of(participant1, participant2));
+    //     if(chat != null) return chat.getChatId();
+    //     return null;
+    // }
+
+    @PostMapping("/isExisted")
+    public String getChatIdBetweenParticipants(@RequestBody List<String> participantIds) {
+        Chat chat = chatService.getChatIdBetweenParticipants(participantIds);
+        System.out.println("Fetched chat : "+ chat);
+        return (chat != null) ? chat.getChatId() : null;
     }
+
 
     @GetMapping("/user/{userId}")
     public Flux<Chat> getChatsByUserId(@PathVariable String userId) {
@@ -64,8 +72,8 @@ public class ChatController {
     @PostMapping("/online-users-count")
     public Integer getOnlineUsersCount(@RequestBody(required = false) List<String> participantIds) {
         if (participantIds != null) {
-            // get online users count from user ids
-            return 5;
+            int count = chatService.getOnlineUsersCount(participantIds);
+            return count;
         } 
         return 0;
     }

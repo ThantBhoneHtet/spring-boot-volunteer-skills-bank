@@ -9,6 +9,7 @@ import group11.volunteer_skills_bank.model.Team;
 import group11.volunteer_skills_bank.model.Volunteer;
 import group11.volunteer_skills_bank.utils.TeamCustomRepo;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -410,6 +411,27 @@ public class TeamService {
     public Mono<Boolean> isVolunteerLeaderOfTeam(String volunteerId, String teamName) {
         return validateVolunteerTeamLeadership(volunteerId, teamName)
                 .map(result -> "valid".equals(result));
+    }
+
+    public String getTeamIdByName(String name) {
+        try {
+            QuerySnapshot querySnapshot = firestore.collection("teams")
+                    .whereEqualTo("name", name)
+                    .get().get();
+
+            if (querySnapshot.isEmpty()) {
+                System.out.println("TeamService: No team found with name: " + name);
+                return null;
+            }
+
+            DocumentSnapshot snapshot = querySnapshot.getDocuments().get(0);
+            String teamId = snapshot.getId();
+            System.out.println("TeamService: Found team ID: " + teamId + " for name: " + name);
+            return teamId;
+        } catch (InterruptedException | ExecutionException e) {
+            System.err.println("TeamService: Error finding team ID by name " + name + ": " + e.getMessage());
+            return null;
+        }
     }
     
     

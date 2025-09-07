@@ -30,8 +30,7 @@ public class OpportunityCompleteController {
     private FeedbackService feedbackService;
 
     @GetMapping("/completed/volunteer/{volunteerId}")
-    public ResponseEntity<?> getCompletedForVolunteer(@PathVariable String volunteerId) {
-        try {
+    public ResponseEntity<?> getCompletedForVolunteer(@PathVariable String volunteerId) {        try {
             List<Opportunity> opportunities = opportunityCompleteService.getCompletedOpportunitiesForVolunteer(volunteerId);
             if (opportunities.isEmpty()) {
                 logger.info("No completed opportunities found for volunteerId: {}", volunteerId);

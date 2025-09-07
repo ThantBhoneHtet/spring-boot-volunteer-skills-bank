@@ -23,7 +23,7 @@ import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
-import group11.volunteer_skills_bank.dto.feedback.TopRatingVolunteersDto;
+import group11.volunteer_skills_bank.dto.feedback.VolunteerFeedbackResponseDto;
 import group11.volunteer_skills_bank.dto.volunteer.VolunteerCreationDto;
 import group11.volunteer_skills_bank.dto.volunteer.VolunteerUpdateDto;
 import group11.volunteer_skills_bank.model.Feedback;
@@ -128,12 +128,12 @@ public class VolunteerController {
             feedbacks = feedbackService.getTopRatedVolunteers(filters);
             System.out.println("Fetched feedbacks: " + (feedbacks != null ? feedbacks.size() : "null"));
 
-            List<TopRatingVolunteersDto> topRatingVolunteersDtos = feedbacks.stream()
-                    .map(feedback -> {
-                        if (feedback == null) {
-                            System.out.println("Null feedback found!");
-                            return null;
-                        }
+            List<VolunteerFeedbackResponseDto> topRatingVolunteersDtos = feedbacks.stream()
+                .map(feedback -> {
+                    if (feedback == null) {
+                        System.out.println("Null feedback found!");
+                        return null;
+                    }
 
                         System.out.println("Processing feedbackId: " + feedback.getFeedbackId());
 
@@ -145,42 +145,20 @@ public class VolunteerController {
                             return null;
                         }
 
-                        List<TopRatingVolunteersDto.FeedbackDetail> feedbackDetails = Optional
-                                .ofNullable(feedback.getFeedbackDetialsList())
-                                .orElse(Collections.emptyList())
-                                .stream()
-                                .map(detail -> {
-                                    System.out.println("Processing feedbackDetail for opportunityId: "
-                                            + detail.getOpportunityId());
-                                    Organization org = organizationService.findOrganization(detail.getReviewerId())
-                                            .blockOptional()
-                                            .orElse(null);
-                                    if (org == null) {
-                                        System.out.println(
-                                                "Organization not found for reviewerId: " + detail.getReviewerId());
-                                    }
-                                    return new TopRatingVolunteersDto.FeedbackDetail(
-                                            detail.getOpportunityId(),
-                                            detail.getReviewerId(),
-                                            org != null ? org.getOrganizationName() : null,
-                                            org != null ? org.getLogoUrl() : null,
-                                            detail.getFeedbackText(),
-                                            detail.getScore(),
-                                            detail.getConfidence());
-                                })
-                                .toList();
+                    List<VolunteerFeedbackResponseDto.FeedbackDetail> feedbackDetails = feedbackService.mapFeedbackDetails(feedback);
 
-                        return new TopRatingVolunteersDto(
-                                volunteer.getVolunteerId(),
-                                volunteer.getFirstName(),
-                                volunteer.getLastName(),
-                                volunteer.getAvatarUrl(),
-                                volunteer.getTotalHours(),
-                                feedback.getWeightedAverageScore(),
-                                feedbackDetails);
-                    })
-                    .filter(Objects::nonNull)
-                    .toList();
+                    return new VolunteerFeedbackResponseDto(
+                        volunteer.getVolunteerId(),
+                        volunteer.getFirstName(),
+                        volunteer.getLastName(),
+                        volunteer.getAvatarUrl(),
+                        volunteer.getTotalHours(),
+                        feedback.getWeightedAverageScore(),
+                        feedbackDetails
+                    );
+                })
+                .filter(Objects::nonNull)
+                .toList();
 
             System.out.println("Successfully built TopRatingVolunteersDto list: " + topRatingVolunteersDtos.size());
 
@@ -192,9 +170,32 @@ public class VolunteerController {
         }
     }
 
-    @GetMapping("/count/active")
-    public Mono<Long> getTotalActiveVolunteers() {
-        return volunteerService.getTotalActiveVolunteers();
+    @GetMapping("/{volunteerId}/feedbacks")
+    public ResponseEntity<?> getFeedbacksForVolunteer(@PathVariable String volunteerId) {
+            Volunteer volunteer = volunteerService.getVolunteer(volunteerId).block();
+            if (volunteer == null) {    
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", "Volunteer not found with id: " + volunteerId));
+            }
+
+            Feedback feedbacks = feedbackService.getFeedbacksForVolunteer(volunteerId);
+            System.out.println("Fetched feedbacks for volunteerId " + volunteerId + ": " + (feedbacks != null ? feedbacks.getFeedbackDetialsList().size() : "null"));
+            if (feedbacks != null) {
+                List<VolunteerFeedbackResponseDto.FeedbackDetail> feedbackDetails = feedbackService.mapFeedbackDetails(feedbacks);
+                return ResponseEntity.ok(
+                    new VolunteerFeedbackResponseDto(
+                        volunteer.getVolunteerId(),
+                        volunteer.getFirstName(),
+                        volunteer.getLastName(),
+                        volunteer.getAvatarUrl(),
+                        volunteer.getTotalHours(),
+                        feedbacks.getWeightedAverageScore(),
+                        feedbackDetails
+                    )
+                );
+            } else {
+                return ResponseEntity.status(HttpStatus.OK).body(Map.of("message", "No feedbacks found for volunteerId: " + volunteerId));
+            }
+        
     }
 
 }
