@@ -18,14 +18,14 @@ import group11.volunteer_skills_bank.model.Organization;
 import group11.volunteer_skills_bank.repository.OrganizationRepo;
 import group11.volunteer_skills_bank.repository.OpportunityRepository;
 import group11.volunteer_skills_bank.repository.ApplicationRepository;
+import group11.volunteer_skills_bank.utils.ActivityLogger;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.Flux;
 import java.util.Map;
 import java.util.HashMap;
 
 @Service
-public class OrganizationService 
-{
+public class OrganizationService {
     private OrganizationRepo organizationRepo;
     private OrganizationRequestService organizationRequestService;
     private PasswordEncoder passwordEncoder;
@@ -35,9 +35,12 @@ public class OrganizationService
     private ApplicationRepository applicationRepository;
     @Autowired
     private Firestore firestore;
+    @Autowired
+    private ActivityLogger activityLogger;
 
-    public OrganizationService(OrganizationRepo organizationRepo, OrganizationRequestService organizationRequestService,PasswordEncoder passwordEncoder,S3Service s3Service, OpportunityStatusService opportunityStatusService, OpportunityRepository opportunityRepository, ApplicationRepository applicationRepository) 
-    {
+    public OrganizationService(OrganizationRepo organizationRepo, OrganizationRequestService organizationRequestService,
+            PasswordEncoder passwordEncoder, S3Service s3Service, OpportunityStatusService opportunityStatusService,
+            OpportunityRepository opportunityRepository, ApplicationRepository applicationRepository) {
         this.organizationRepo = organizationRepo;
         this.organizationRequestService = organizationRequestService;
         this.passwordEncoder = passwordEncoder;
@@ -46,11 +49,10 @@ public class OrganizationService
         this.opportunityRepository = opportunityRepository;
         this.applicationRepository = applicationRepository;
     }
-    
+
     public Flux<Organization> listAll() {
         return organizationRepo.findAll();
     }
-
 
     public Mono<Organization> approveRequest(String organizationId) {
         return organizationRequestService.findOrganization(organizationId)
@@ -77,7 +79,15 @@ public class OrganizationService
                                 organization.setCreatedAt(updatedRequest.getCreatedAt());
                                 organization.setStatus("active");
 
-                                return organizationRepo.save(organization);
+                                return organizationRepo.save(organization)
+                                        .doOnSuccess(savedOrganization -> {
+                                            // Log organization approval activity
+                                            activityLogger.logOrganizationApproval(
+                                                    organizationId,
+                                                    request.getOrganizationName(),
+                                                    "system", // You might want to pass actual admin ID
+                                                    "System Admin");
+                                        });
                             });
                 });
     }
@@ -109,11 +119,9 @@ public class OrganizationService
     }
 
     public Mono<Organization> updateOrganization(String id, OrganizationUpdate dto, MultipartFile image)
-    throws IOException,ExecutionException,InterruptedException
-    {
+            throws IOException, ExecutionException, InterruptedException {
         Organization organization = organizationRepo.findById(id).block();
-        if (organization == null) 
-        {
+        if (organization == null) {
             throw new RuntimeException("Volunteer with ID " + id + " not found.");
         }
         if (image != null) {
@@ -123,7 +131,7 @@ public class OrganizationService
             organization.setLogoUrl(newImageUrl); // Set the new URL
         }
 
-          if (dto.location() != null) {
+        if (dto.location() != null) {
             String city = dto.location().city() != null ? dto.location().city()
                     : (organization.getLocation() != null ? organization.getLocation().getCity() : null);
             String country = dto.location().country() != null ? dto.location().country()
@@ -145,17 +153,18 @@ public class OrganizationService
         if (dto.phoneNumber() != null) {
             organization.setPhoneNumber(dto.phoneNumber());
         }
-          ApiFuture<WriteResult> future = firestore.collection("organizations").document(id).set(organization);
+        ApiFuture<WriteResult> future = firestore.collection("organizations").document(id).set(organization);
         future.get(); // Wait for the write to complete
         return organizationRepo.save(organization);
     }
-    
+
     public void saveOrganization(Organization organization) {
         organizationRepo.save(organization).block();
     }
 
     /**
      * Delete an organization and cancel all its opportunities
+     * 
      * @param organizationId The ID of the organization to delete
      * @return Mono<Void> indicating completion
      */
@@ -168,11 +177,14 @@ public class OrganizationService
                             .then(organizationRepo.deleteById(organizationId));
                 })
                 .doOnSuccess(result -> System.out.println("Successfully deleted organization: " + organizationId))
-                .doOnError(error -> System.err.println("Error deleting organization " + organizationId + ": " + error.getMessage()));
+                .doOnError(error -> System.err
+                        .println("Error deleting organization " + organizationId + ": " + error.getMessage()));
     }
 
     /**
-     * Get organization statistics including active requests, total volunteers, pending reviews, and completed tasks
+     * Get organization statistics including active requests, total volunteers,
+     * pending reviews, and completed tasks
+     * 
      * @param organizationId The ID of the organization
      * @return Mono<Map<String, Object>> containing the stats
      */
@@ -185,17 +197,17 @@ public class OrganizationService
                             .collectList()
                             .flatMap(opportunities -> {
                                 Map<String, Object> stats = new HashMap<>();
-                                
+
                                 // Count active requests
                                 long activeRequests = opportunities.stream()
                                         .filter(opp -> "active".equals(opp.getStatus()))
                                         .count();
-                                
+
                                 // Count completed tasks
                                 long completedTasks = opportunities.stream()
                                         .filter(opp -> "completed".equals(opp.getStatus()))
                                         .count();
-                                
+
                                 // Get all applications for these opportunities
                                 if (opportunities.isEmpty()) {
                                     stats.put("activeRequests", activeRequests);
@@ -204,23 +216,25 @@ public class OrganizationService
                                     stats.put("completedTasks", completedTasks);
                                     return Mono.just(stats);
                                 }
-                                
+
                                 // Get applications for all opportunities of this organization
                                 return Flux.fromIterable(opportunities)
-                                        .flatMap(opp -> applicationRepository.findByOpportunityId(opp.getOpportunityId()))
+                                        .flatMap(opp -> applicationRepository
+                                                .findByOpportunityId(opp.getOpportunityId()))
                                         .collectList()
                                         .map(applications -> {
                                             // Count unique volunteers (by email/leaderEmail)
                                             long totalVolunteers = applications.stream()
-                                                    .map(app -> "individual".equals(app.getType()) ? app.getEmail() : app.getLeaderEmail())
+                                                    .map(app -> "individual".equals(app.getType()) ? app.getEmail()
+                                                            : app.getLeaderEmail())
                                                     .distinct()
                                                     .count();
-                                            
+
                                             // Count pending reviews
                                             long pendingReviews = applications.stream()
                                                     .filter(app -> "pending".equals(app.getStatus()))
                                                     .count();
-                                            
+
                                             stats.put("activeRequests", activeRequests);
                                             stats.put("totalVolunteers", totalVolunteers);
                                             stats.put("pendingReviews", pendingReviews);
@@ -242,8 +256,10 @@ public class OrganizationService
 
     /**
      * Get opportunities for an organization with application counts
+     * 
      * @param organizationId The ID of the organization
-     * @return Mono<List<Map<String, Object>>> containing opportunities with application data
+     * @return Mono<List<Map<String, Object>>> containing opportunities with
+     *         application data
      */
     public Mono<java.util.List<java.util.Map<String, Object>>> getOrganizationOpportunities(String organizationId) {
         return organizationRepo.findById(organizationId)
@@ -262,7 +278,7 @@ public class OrganizationService
                                             opportunityData.put("status", opportunity.getStatus());
                                             opportunityData.put("volunteersNeeded", opportunity.getVolunteersNeeded());
                                             opportunityData.put("applicantCount", applications.size());
-                                            
+
                                             // Count applications by status
                                             long pendingCount = applications.stream()
                                                     .filter(app -> "pending".equals(app.getStatus()))
@@ -270,29 +286,48 @@ public class OrganizationService
                                             long approvedCount = applications.stream()
                                                     .filter(app -> "approved".equals(app.getStatus()))
                                                     .count();
-                                            
+
                                             opportunityData.put("pendingApplications", pendingCount);
                                             opportunityData.put("approvedApplications", approvedCount);
-                                            
+
                                             // Add dates if available
                                             if (opportunity.getStartDate() != null) {
-                                                opportunityData.put("startDate", opportunity.getStartDate().toDate().getTime());
+                                                opportunityData.put("startDate",
+                                                        opportunity.getStartDate().toDate().getTime());
                                             }
                                             if (opportunity.getEndDate() != null) {
-                                                opportunityData.put("endDate", opportunity.getEndDate().toDate().getTime());
+                                                opportunityData.put("endDate",
+                                                        opportunity.getEndDate().toDate().getTime());
                                             }
                                             if (opportunity.getDeadline() != null) {
-                                                opportunityData.put("deadline", opportunity.getDeadline().toDate().getTime());
+                                                opportunityData.put("deadline",
+                                                        opportunity.getDeadline().toDate().getTime());
                                             }
-                                            
+
                                             return opportunityData;
                                         });
                             })
                             .collectList();
                 })
                 .onErrorResume(error -> {
-                    System.err.println("Error fetching opportunities for organization " + organizationId + ": " + error.getMessage());
+                    System.err.println("Error fetching opportunities for organization " + organizationId + ": "
+                            + error.getMessage());
                     return Mono.just(java.util.Collections.emptyList());
+                });
+    }
+
+    /**
+     * Get the total number of approved organizations
+     * 
+     * @return Mono<Long> containing the count of approved organizations
+     */
+    public Mono<Long> getTotalApprovedOrganizations() {
+        return organizationRepo.findAll()
+                .filter(organization -> "active".equals(organization.getStatus()))
+                .count()
+                .onErrorResume(error -> {
+                    System.err.println("Error counting approved organizations: " + error.getMessage());
+                    return Mono.just(0L);
                 });
     }
 }

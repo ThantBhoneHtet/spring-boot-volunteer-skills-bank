@@ -19,6 +19,7 @@ import group11.volunteer_skills_bank.dto.volunteer.VolunteerCreationDto;
 import group11.volunteer_skills_bank.dto.volunteer.VolunteerUpdateDto;
 import group11.volunteer_skills_bank.model.Volunteer;
 import group11.volunteer_skills_bank.repository.VolunteerRepository;
+import group11.volunteer_skills_bank.utils.ActivityLogger;
 import group11.volunteer_skills_bank.utils.VolunteerCustomRepo;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -40,6 +41,9 @@ public class VolunteerService {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private ActivityLogger activityLogger;
 
     public Mono<Volunteer> createVolunteer(VolunteerCreationDto dto) {
         if (volunteerCustomRepo.existsByEmail(dto.email())) {
@@ -69,7 +73,8 @@ public class VolunteerService {
         return volunteerRepository.findAll();
     }
 
-    public Mono<Volunteer> updateVolunteer(String id, VolunteerUpdateDto dto, MultipartFile image,List<MultipartFile> certificateFiles)
+    public Mono<Volunteer> updateVolunteer(String id, VolunteerUpdateDto dto, MultipartFile image,
+            List<MultipartFile> certificateFiles)
             throws IOException, ExecutionException, InterruptedException { // Declare exceptions to be thrown
 
         Volunteer volunteer = volunteerRepository.findById(id).block(); // Block and get the volunteer
@@ -103,7 +108,7 @@ public class VolunteerService {
                     : (volunteer.getLocation() != null ? volunteer.getLocation().getCity() : null);
             String country = dto.location().country() != null ? dto.location().country()
                     : (volunteer.getLocation() != null ? volunteer.getLocation().getCoutry() : null);
-            volunteer.setLocation(new Volunteer.Location(country,city));
+            volunteer.setLocation(new Volunteer.Location(country, city));
         }
 
         if (dto.bio() != null) {
@@ -191,9 +196,44 @@ public class VolunteerService {
     public void updateStauts(String id, String status) {
         Volunteer volunteer = volunteerRepository.findById(id).block();
         if (volunteer != null) {
+            String previousStatus = volunteer.getStatus();
             volunteer.setStatus(status);
             volunteerRepository.save(volunteer).block();
+
+            // Log activity for status changes
+            if (!status.equals(previousStatus)) {
+                if ("suspended".equals(status)) {
+                    activityLogger.logUserSuspension(
+                            id,
+                            volunteer.getFirstName() + " " + volunteer.getLastName(),
+                            "system", // You might want to pass actual admin ID
+                            "System Admin",
+                            7, // Default suspension period
+                            "Account suspended by admin");
+                } else if ("active".equals(status) && "suspended".equals(previousStatus)) {
+                    activityLogger.logUserReactivation(
+                            id,
+                            volunteer.getFirstName() + " " + volunteer.getLastName(),
+                            "system", // You might want to pass actual admin ID
+                            "System Admin");
+                }
+            }
         }
+    }
+
+    /**
+     * Get the total number of active volunteers (excluding suspended ones)
+     * 
+     * @return Mono<Long> containing the count of active volunteers
+     */
+    public Mono<Long> getTotalActiveVolunteers() {
+        return volunteerRepository.findAll()
+                .filter(volunteer -> "active".equals(volunteer.getStatus()))
+                .count()
+                .onErrorResume(error -> {
+                    System.err.println("Error counting active volunteers: " + error.getMessage());
+                    return Mono.just(0L);
+                });
     }
 
 }

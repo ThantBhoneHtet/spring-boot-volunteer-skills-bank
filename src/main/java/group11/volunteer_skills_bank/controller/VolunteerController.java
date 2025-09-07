@@ -1,6 +1,5 @@
 package group11.volunteer_skills_bank.controller;
 
-
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
@@ -38,9 +37,9 @@ import reactor.core.publisher.Mono;
 
 @RestController
 @RequestMapping("/api/volunteers")
-@CrossOrigin(origins = "*") 
+@CrossOrigin(origins = "*")
 public class VolunteerController {
-    
+
     @Autowired
     private VolunteerService volunteerService;
 
@@ -76,15 +75,14 @@ public class VolunteerController {
         return ResponseEntity.ok(volunteerService.getAllVolunteers());
     }
 
-    @PutMapping(value = "/{id}", consumes = {"multipart/form-data"})
+    @PutMapping(value = "/{id}", consumes = { "multipart/form-data" })
     public ResponseEntity<Mono<Volunteer>> updateVolunteer(
             @PathVariable String id,
             @RequestPart("dto") VolunteerUpdateDto dto,
             @RequestPart(value = "image", required = false) MultipartFile image,
-            @RequestPart(value = "certificateFiles", required = false) List<MultipartFile> certificateFiles
-    ) {
+            @RequestPart(value = "certificateFiles", required = false) List<MultipartFile> certificateFiles) {
         try {
-            return ResponseEntity.ok(volunteerService.updateVolunteer(id, dto, image,certificateFiles));
+            return ResponseEntity.ok(volunteerService.updateVolunteer(id, dto, image, certificateFiles));
         } catch (IOException | ExecutionException | InterruptedException e) {
             return ResponseEntity.internalServerError().body(Mono.empty());
         }
@@ -110,9 +108,10 @@ public class VolunteerController {
             return ResponseEntity.internalServerError().body(Map.of("message", "Error retrieving stats"));
         }
     }
-    
+
     @PutMapping("/{volunteerId}/status")
-    public ResponseEntity<?> updateVolunteerStatus(@PathVariable String volunteerId, @RequestBody Map<String, String> status) {
+    public ResponseEntity<?> updateVolunteerStatus(@PathVariable String volunteerId,
+            @RequestBody Map<String, String> status) {
         try {
             volunteerService.updateStauts(volunteerId, status.get("status"));
             return ResponseEntity.ok(Map.of("message", "Status updated successfully"));
@@ -121,7 +120,7 @@ public class VolunteerController {
         }
     }
 
-   @GetMapping("/top-rated-volunteers") 
+    @GetMapping("/top-rated-volunteers")
     public ResponseEntity<?> getTopRatedVolunteers(@RequestBody(required = false) Map<String, Object> filters) {
         List<Feedback> feedbacks;
 
@@ -130,58 +129,58 @@ public class VolunteerController {
             System.out.println("Fetched feedbacks: " + (feedbacks != null ? feedbacks.size() : "null"));
 
             List<TopRatingVolunteersDto> topRatingVolunteersDtos = feedbacks.stream()
-                .map(feedback -> {
-                    if (feedback == null) {
-                        System.out.println("Null feedback found!");
-                        return null;
-                    }
+                    .map(feedback -> {
+                        if (feedback == null) {
+                            System.out.println("Null feedback found!");
+                            return null;
+                        }
 
-                    System.out.println("Processing feedbackId: " + feedback.getFeedbackId());
+                        System.out.println("Processing feedbackId: " + feedback.getFeedbackId());
 
-                    Volunteer volunteer = volunteerService.getVolunteer(feedback.getFeedbackId())
-                                                        .blockOptional()
-                                                        .orElse(null);
-                    if (volunteer == null) {
-                        System.out.println("Volunteer not found for feedbackId: " + feedback.getFeedbackId());
-                        return null;
-                    }
+                        Volunteer volunteer = volunteerService.getVolunteer(feedback.getFeedbackId())
+                                .blockOptional()
+                                .orElse(null);
+                        if (volunteer == null) {
+                            System.out.println("Volunteer not found for feedbackId: " + feedback.getFeedbackId());
+                            return null;
+                        }
 
-                    List<TopRatingVolunteersDto.FeedbackDetail> feedbackDetails =
-                        Optional.ofNullable(feedback.getFeedbackDetialsList())
+                        List<TopRatingVolunteersDto.FeedbackDetail> feedbackDetails = Optional
+                                .ofNullable(feedback.getFeedbackDetialsList())
                                 .orElse(Collections.emptyList())
                                 .stream()
                                 .map(detail -> {
-                                    System.out.println("Processing feedbackDetail for opportunityId: " + detail.getOpportunityId());
+                                    System.out.println("Processing feedbackDetail for opportunityId: "
+                                            + detail.getOpportunityId());
                                     Organization org = organizationService.findOrganization(detail.getReviewerId())
-                                                                        .blockOptional()
-                                                                        .orElse(null);
+                                            .blockOptional()
+                                            .orElse(null);
                                     if (org == null) {
-                                        System.out.println("Organization not found for reviewerId: " + detail.getReviewerId());
+                                        System.out.println(
+                                                "Organization not found for reviewerId: " + detail.getReviewerId());
                                     }
                                     return new TopRatingVolunteersDto.FeedbackDetail(
-                                        detail.getOpportunityId(),
-                                        detail.getReviewerId(),
-                                        org != null ? org.getOrganizationName() : null,
-                                        org != null ? org.getLogoUrl() : null,
-                                        detail.getFeedbackText(),
-                                        detail.getScore(),
-                                        detail.getConfidence()
-                                    );
+                                            detail.getOpportunityId(),
+                                            detail.getReviewerId(),
+                                            org != null ? org.getOrganizationName() : null,
+                                            org != null ? org.getLogoUrl() : null,
+                                            detail.getFeedbackText(),
+                                            detail.getScore(),
+                                            detail.getConfidence());
                                 })
                                 .toList();
 
-                    return new TopRatingVolunteersDto(
-                        volunteer.getVolunteerId(),
-                        volunteer.getFirstName(),
-                        volunteer.getLastName(),
-                        volunteer.getAvatarUrl(),
-                        volunteer.getTotalHours(),
-                        feedback.getWeightedAverageScore(),
-                        feedbackDetails
-                    );
-                })
-                .filter(Objects::nonNull)
-                .toList();
+                        return new TopRatingVolunteersDto(
+                                volunteer.getVolunteerId(),
+                                volunteer.getFirstName(),
+                                volunteer.getLastName(),
+                                volunteer.getAvatarUrl(),
+                                volunteer.getTotalHours(),
+                                feedback.getWeightedAverageScore(),
+                                feedbackDetails);
+                    })
+                    .filter(Objects::nonNull)
+                    .toList();
 
             System.out.println("Successfully built TopRatingVolunteersDto list: " + topRatingVolunteersDtos.size());
 
@@ -191,6 +190,11 @@ public class VolunteerController {
             e.printStackTrace();
             throw new RuntimeException("Error fetching top-rated volunteers", e);
         }
+    }
+
+    @GetMapping("/count/active")
+    public Mono<Long> getTotalActiveVolunteers() {
+        return volunteerService.getTotalActiveVolunteers();
     }
 
 }

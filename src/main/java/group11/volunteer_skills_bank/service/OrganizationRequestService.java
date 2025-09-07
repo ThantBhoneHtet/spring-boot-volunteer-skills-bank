@@ -10,19 +10,22 @@ import com.google.cloud.Timestamp;
 import group11.volunteer_skills_bank.dto.organization.OrganizationRequestDto;
 import group11.volunteer_skills_bank.model.OrganizationRequest;
 import group11.volunteer_skills_bank.repository.OrganizationRequestRepo;
+import group11.volunteer_skills_bank.utils.ActivityLogger;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 @Service
-public class OrganizationRequestService 
-{
+public class OrganizationRequestService {
     @Autowired
     private OrganizationRequestRepo organizationRequestRepo;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
-    public ResponseEntity<?> createOrganizationRequest(OrganizationRequestDto organizationRequestDto) 
-    {
+
+    @Autowired
+    private ActivityLogger activityLogger;
+
+    public ResponseEntity<?> createOrganizationRequest(OrganizationRequestDto organizationRequestDto) {
         if (Boolean.TRUE.equals(organizationRequestRepo.existsByEmail(organizationRequestDto.email()).block())) {
             return ResponseEntity.badRequest().body("Email already exists");
         }
@@ -44,8 +47,7 @@ public class OrganizationRequestService
         return organizationRequestRepo.findAll();
     }
 
-    public Mono<OrganizationRequest> rejectOrganizationRequest(String organizationId, String rejectionReason) 
-    {
+    public Mono<OrganizationRequest> rejectOrganizationRequest(String organizationId, String rejectionReason) {
         return organizationRequestRepo.findByOrganizationId(organizationId)
                 .flatMap(request -> {
                     if (!"pending".equals(request.getStatus())) {
@@ -56,10 +58,19 @@ public class OrganizationRequestService
                     request.setStatus("rejected");
                     request.setRejectionReason(rejectionReason);
 
-                    return organizationRequestRepo.save(request);
+                    return organizationRequestRepo.save(request)
+                            .doOnSuccess(savedRequest -> {
+                                // Log organization rejection activity
+                                activityLogger.logOrganizationRejection(
+                                        organizationId,
+                                        request.getOrganizationName(),
+                                        "system", // You might want to pass actual admin ID
+                                        "System Admin",
+                                        rejectionReason);
+                            });
                 });
     }
-    
+
     public Mono<OrganizationRequest> findOrganization(String organizationId) {
         return organizationRequestRepo.findByOrganizationId(organizationId);
     }

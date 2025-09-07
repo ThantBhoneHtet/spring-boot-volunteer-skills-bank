@@ -32,7 +32,8 @@ public class OpportunityController {
     private final OpportunityService opportunityService;
     private final OpportunityStatusService opportunityStatusService;
 
-    public OpportunityController(OpportunityService opportunityService, OpportunityStatusService opportunityStatusService) {
+    public OpportunityController(OpportunityService opportunityService,
+            OpportunityStatusService opportunityStatusService) {
         this.opportunityService = opportunityService;
         this.opportunityStatusService = opportunityStatusService;
     }
@@ -44,7 +45,7 @@ public class OpportunityController {
         opportunity.setDescription(request.getDescription());
         opportunity.setOrganizationId(request.getOrganizationId());
         opportunity.setSkillsRequired(request.getSkillsRequired());
-        
+
         // Handle location with city
         if (request.getLocation() != null) {
             Opportunity.Location location = new Opportunity.Location();
@@ -52,7 +53,7 @@ public class OpportunityController {
             location.setCity(request.getLocation().getCity());
             opportunity.setLocation(location);
         }
-        
+
         // Handle volunteer work dates
         if (request.getStartDateMillis() != null) {
             opportunity.setStartDate(com.google.cloud.Timestamp.ofTimeSecondsAndNanos(
@@ -62,13 +63,13 @@ public class OpportunityController {
             opportunity.setEndDate(com.google.cloud.Timestamp.ofTimeSecondsAndNanos(
                     request.getEndDateMillis() / 1000, (int) ((request.getEndDateMillis() % 1000) * 1_000_000)));
         }
-        
+
         // Handle application deadline
         if (request.getDeadlineMillis() != null) {
             opportunity.setDeadline(com.google.cloud.Timestamp.ofTimeSecondsAndNanos(
                     request.getDeadlineMillis() / 1000, (int) ((request.getDeadlineMillis() % 1000) * 1_000_000)));
         }
-        
+
         opportunity.setTimeCommitment(request.getTimeCommitment());
         opportunity.setVolunteersNeeded(request.getVolunteersNeeded());
         opportunity.setCategories(request.getCategories());
@@ -87,7 +88,8 @@ public class OpportunityController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Mono<Opportunity>> update(@PathVariable String id, @RequestBody OpportunityCreateRequest request) {
+    public ResponseEntity<Mono<Opportunity>> update(@PathVariable String id,
+            @RequestBody OpportunityCreateRequest request) {
         // Security check: Only organization owners can edit their own posts
         // This will be enforced at the service level
         Opportunity update = new Opportunity();
@@ -98,7 +100,7 @@ public class OpportunityController {
         update.setTimeCommitment(request.getTimeCommitment());
         update.setVolunteersNeeded(request.getVolunteersNeeded());
         update.setType(request.getType());
-        
+
         // Handle location with city
         if (request.getLocation() != null) {
             Opportunity.Location location = new Opportunity.Location();
@@ -106,7 +108,7 @@ public class OpportunityController {
             location.setCity(request.getLocation().getCity());
             update.setLocation(location);
         }
-        
+
         // Handle volunteer work dates
         if (request.getStartDateMillis() != null) {
             update.setStartDate(com.google.cloud.Timestamp.ofTimeSecondsAndNanos(
@@ -116,19 +118,20 @@ public class OpportunityController {
             update.setEndDate(com.google.cloud.Timestamp.ofTimeSecondsAndNanos(
                     request.getEndDateMillis() / 1000, (int) ((request.getEndDateMillis() % 1000) * 1_000_000)));
         }
-        
+
         // Handle application deadline
         if (request.getDeadlineMillis() != null) {
             update.setDeadline(com.google.cloud.Timestamp.ofTimeSecondsAndNanos(
                     request.getDeadlineMillis() / 1000, (int) ((request.getDeadlineMillis() % 1000) * 1_000_000)));
         }
-        
+
         return ResponseEntity.ok(opportunityService.update(id, update));
     }
 
     // New endpoint for updating opportunity status (e.g., cancelling posts)
     @PutMapping("/{id}/status")
-    public ResponseEntity<Mono<Opportunity>> updateStatus(@PathVariable String id, @RequestBody OpportunityStatusUpdateRequest request) {
+    public ResponseEntity<Mono<Opportunity>> updateStatus(@PathVariable String id,
+            @RequestBody OpportunityStatusUpdateRequest request) {
         return ResponseEntity.ok(opportunityService.updateStatus(id, request.getStatus()));
     }
 
@@ -149,12 +152,12 @@ public class OpportunityController {
 
     // Admin endpoints for post management
     @PostMapping("/approve")
-    public ResponseEntity<Mono<Opportunity>> approveOpportunity(@Valid @RequestBody OpportunityApprovalRequest request) {
+    public ResponseEntity<Mono<Opportunity>> approveOpportunity(
+            @Valid @RequestBody OpportunityApprovalRequest request) {
         return ResponseEntity.ok(opportunityService.approveOpportunity(
-            request.getOpportunityId(), 
-            request.getApprovalStatus(), 
-            request.getAdminNotes()
-        ));
+                request.getOpportunityId(),
+                request.getApprovalStatus(),
+                request.getAdminNotes()));
     }
 
     @GetMapping("/admin/pending")
@@ -183,14 +186,18 @@ public class OpportunityController {
     public ResponseEntity<Mono<Opportunity>> createSampleOpportunity(@RequestBody OpportunityCreateRequest request) {
         Opportunity sample = new Opportunity();
         sample.setTitle(request.getTitle() != null ? request.getTitle() : "Sample Volunteer Opportunity");
-        sample.setDescription(request.getDescription() != null ? request.getDescription() : "This is a sample opportunity for testing.");
+        sample.setDescription(request.getDescription() != null ? request.getDescription()
+                : "This is a sample opportunity for testing.");
         sample.setOrganizationId(request.getOrganizationId());
-        sample.setSkillsRequired(request.getSkillsRequired() != null ? request.getSkillsRequired() : List.of("Communication", "Leadership"));
-        sample.setCategories(request.getCategories() != null ? request.getCategories() : List.of("Education", "Community"));
-        sample.setTimeCommitment(request.getTimeCommitment() != null ? request.getTimeCommitment() : "2-3 hours per week");
+        sample.setSkillsRequired(request.getSkillsRequired() != null ? request.getSkillsRequired()
+                : List.of("Communication", "Leadership"));
+        sample.setCategories(
+                request.getCategories() != null ? request.getCategories() : List.of("Education", "Community"));
+        sample.setTimeCommitment(
+                request.getTimeCommitment() != null ? request.getTimeCommitment() : "2-3 hours per week");
         sample.setVolunteersNeeded(request.getVolunteersNeeded() != null ? request.getVolunteersNeeded() : 5);
         sample.setType(request.getType() != null ? request.getType() : "individual");
-        
+
         // Set sample dates if not provided
         if (request.getStartDateMillis() == null) {
             long oneWeekFromNow = System.currentTimeMillis() + (7L * 24 * 60 * 60 * 1000);
@@ -204,16 +211,16 @@ public class OpportunityController {
             long fiveDaysFromNow = System.currentTimeMillis() + (5L * 24 * 60 * 60 * 1000);
             sample.setDeadline(com.google.cloud.Timestamp.ofTimeSecondsAndNanos(fiveDaysFromNow / 1000, 0));
         }
-        
+
         // Set sample location
         Opportunity.Location location = new Opportunity.Location();
         location.setAddress("Sample Address, Sample City");
         location.setCity("Sample City");
         sample.setLocation(location);
-        
+
         sample.setStatus("active");
         sample.setApprovalStatus("pending");
-        
+
         return ResponseEntity.status(HttpStatus.CREATED).body(opportunityService.create(sample));
     }
 
@@ -239,16 +246,18 @@ public class OpportunityController {
     @GetMapping("/skills")
     public Mono<ResponseEntity<List<String>>> getAllSkills() {
         return opportunityService.getAllUniqueSkills()
-                .collectList()  // Convert Flux<String> -> Mono<List<String>>
+                .collectList() // Convert Flux<String> -> Mono<List<String>>
                 .map(list -> ResponseEntity.ok(list));
     }
-
 
     // Check if opportunity is available for applications (volunteersNeeded > 0)
     @GetMapping("/{id}/availability")
     public ResponseEntity<Mono<Object>> checkAvailability(@PathVariable String id) {
         return ResponseEntity.ok(opportunityService.checkAvailability(id));
     }
+
+    @GetMapping("/count/approved")
+    public Mono<Long> getTotalApprovedOpportunities() {
+        return opportunityService.getTotalApprovedOpportunities();
+    }
 }
-
-

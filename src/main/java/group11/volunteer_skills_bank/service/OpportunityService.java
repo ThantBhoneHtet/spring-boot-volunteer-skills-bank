@@ -8,6 +8,7 @@ import com.google.cloud.Timestamp;
 
 import group11.volunteer_skills_bank.model.Opportunity;
 import group11.volunteer_skills_bank.repository.OpportunityRepository;
+import group11.volunteer_skills_bank.utils.ActivityLogger;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -15,19 +16,21 @@ import reactor.core.publisher.Mono;
 public class OpportunityService {
 
     private final OpportunityRepository opportunityRepository;
+    private final ActivityLogger activityLogger;
 
-    public OpportunityService(OpportunityRepository opportunityRepository) {
+    public OpportunityService(OpportunityRepository opportunityRepository, ActivityLogger activityLogger) {
         this.opportunityRepository = opportunityRepository;
+        this.activityLogger = activityLogger;
     }
 
     public Mono<Opportunity> create(Opportunity opportunity) {
         opportunity.setOpportunityId(UUID.randomUUID().toString());
-        
+
         // Set creation timestamp
         Timestamp now = Timestamp.now();
         opportunity.setCreatedAt(now);
         opportunity.setUpdatedAt(now);
-        
+
         // Set default status if not provided
         if (opportunity.getStatus() == null) {
             opportunity.setStatus("active");
@@ -35,13 +38,13 @@ public class OpportunityService {
         if (opportunity.getApprovalStatus() == null) {
             opportunity.setApprovalStatus("pending");
         }
-        
+
         // If no deadline is set, set it to 30 days from now by default
         if (opportunity.getDeadline() == null) {
             long thirtyDaysFromNow = System.currentTimeMillis() + (30L * 24 * 60 * 60 * 1000);
             opportunity.setDeadline(Timestamp.ofTimeSecondsAndNanos(thirtyDaysFromNow / 1000, 0));
         }
-        
+
         return opportunityRepository.save(opportunity);
     }
 
@@ -52,18 +55,18 @@ public class OpportunityService {
                     if (!"pending".equals(existing.getApprovalStatus())) {
                         return Mono.error(new IllegalStateException("Cannot edit approved or rejected opportunities"));
                     }
-                    
+
                     // Security check: Only organization owners can edit their own posts
                     // This prevents admins from editing posts
                     if (existing.getOrganizationId() == null || update.getOrganizationId() == null) {
                         return Mono.error(new SecurityException("Organization ID is required for post updates"));
                     }
-                    
+
                     // Only allow updates if the organization ID matches (same organization)
                     if (!existing.getOrganizationId().equals(update.getOrganizationId())) {
                         return Mono.error(new SecurityException("Only organization owners can edit their own posts"));
                     }
-                    
+
                     existing.setTitle(update.getTitle());
                     existing.setDescription(update.getDescription());
                     existing.setSkillsRequired(update.getSkillsRequired());
@@ -75,10 +78,10 @@ public class OpportunityService {
                     existing.setStartDate(update.getStartDate());
                     existing.setEndDate(update.getEndDate());
                     existing.setDeadline(update.getDeadline());
-                    
+
                     // Update the updatedAt timestamp
                     existing.setUpdatedAt(Timestamp.now());
-                    
+
                     return opportunityRepository.save(existing);
                 });
     }
@@ -93,7 +96,21 @@ public class OpportunityService {
     }
 
     public Mono<Void> delete(String id) {
-        return opportunityRepository.deleteById(id);
+        return opportunityRepository.findById(id)
+                .flatMap(opportunity -> {
+                    // Log the deletion activity before deleting
+                    activityLogger.logPostDeletion(
+                            opportunity.getOrganizationId(),
+                            "Organization", // You might want to get actual org name
+                            "system", // You might want to pass actual admin ID
+                            "System Admin",
+                            opportunity.getTitle(),
+                            "Post deleted by admin");
+
+                    // Delete the opportunity
+                    return opportunityRepository.deleteById(id);
+                })
+                .switchIfEmpty(Mono.error(new IllegalArgumentException("Opportunity not found with ID: " + id)));
     }
 
     public Mono<Opportunity> getById(String id) {
@@ -110,7 +127,8 @@ public class OpportunityService {
 
     public Flux<Opportunity> getRecommended(String volunteerId) {
         // For now, return all active opportunities
-        // In a real implementation, this would filter based on volunteer skills and preferences
+        // In a real implementation, this would filter based on volunteer skills and
+        // preferences
         return opportunityRepository.findAll()
                 .filter(opportunity -> "active".equals(opportunity.getStatus()))
                 .take(10); // Limit to 10 recommendations
@@ -125,11 +143,30 @@ public class OpportunityService {
                     } else if ("rejected".equals(approvalStatus)) {
                         opportunity.setStatus("rejected");
                     }
-                    
+
                     // Update the updatedAt timestamp when approval status changes
                     opportunity.setUpdatedAt(Timestamp.now());
-                    
-                    return opportunityRepository.save(opportunity);
+
+                    return opportunityRepository.save(opportunity)
+                            .doOnSuccess(savedOpportunity -> {
+                                // Log activity for post approval/rejection
+                                if ("approved".equals(approvalStatus)) {
+                                    activityLogger.logPostApproval(
+                                            opportunity.getOrganizationId(),
+                                            "Organization", // You might want to get actual org name
+                                            "system", // You might want to pass actual admin ID
+                                            "System Admin",
+                                            opportunity.getTitle());
+                                } else if ("rejected".equals(approvalStatus)) {
+                                    activityLogger.logPostRejection(
+                                            opportunity.getOrganizationId(),
+                                            "Organization", // You might want to get actual org name
+                                            "system", // You might want to pass actual admin ID
+                                            "System Admin",
+                                            opportunity.getTitle(),
+                                            adminNotes != null ? adminNotes : "No reason provided");
+                                }
+                            });
                 })
                 .onErrorResume(error -> {
                     System.err.println("Error approving opportunity: " + error.getMessage());
@@ -166,8 +203,8 @@ public class OpportunityService {
 
     public Flux<Opportunity> getActiveOpportunities() {
         return opportunityRepository.findAll()
-                .filter(opportunity -> "active".equals(opportunity.getStatus()) && 
-                                     "approved".equals(opportunity.getApprovalStatus()))
+                .filter(opportunity -> "active".equals(opportunity.getStatus()) &&
+                        "approved".equals(opportunity.getApprovalStatus()))
                 .onErrorResume(error -> {
                     System.err.println("Error fetching active opportunities: " + error.getMessage());
                     return Flux.empty();
@@ -177,10 +214,10 @@ public class OpportunityService {
     public Flux<String> getAllUniqueSkills() {
         return opportunityRepository.findAll()
                 .doOnNext(opportunity -> {
-                    System.out.println("Found opportunity: " + opportunity.getTitle() + 
-                                     ", Status: " + opportunity.getStatus() + 
-                                     ", ApprovalStatus: " + opportunity.getApprovalStatus() +
-                                     ", Skills: " + opportunity.getSkillsRequired());
+                    System.out.println("Found opportunity: " + opportunity.getTitle() +
+                            ", Status: " + opportunity.getStatus() +
+                            ", ApprovalStatus: " + opportunity.getApprovalStatus() +
+                            ", Skills: " + opportunity.getSkillsRequired());
                 })
                 // Remove status filters to get all skills from database
                 .flatMap(opportunity -> {
@@ -203,11 +240,11 @@ public class OpportunityService {
     public Mono<Object> checkAvailability(String opportunityId) {
         return opportunityRepository.findById(opportunityId)
                 .map(opportunity -> {
-                    final boolean available = opportunity.getVolunteersNeeded() > 0 && 
-                                            "active".equals(opportunity.getStatus());
+                    final boolean available = opportunity.getVolunteersNeeded() > 0 &&
+                            "active".equals(opportunity.getStatus());
                     final int needed = opportunity.getVolunteersNeeded();
                     final String oppStatus = opportunity.getStatus();
-                    
+
                     return new Object() {
                         public boolean isAvailable = available;
                         public int volunteersNeeded = needed;
@@ -219,5 +256,20 @@ public class OpportunityService {
                     public boolean isAvailable = false;
                     public String error = "Opportunity not found";
                 }));
+    }
+
+    /**
+     * Get the total number of approved opportunities
+     * 
+     * @return Mono<Long> containing the count of approved opportunities
+     */
+    public Mono<Long> getTotalApprovedOpportunities() {
+        return opportunityRepository.findAll()
+                .filter(opportunity -> "approved".equals(opportunity.getApprovalStatus()))
+                .count()
+                .onErrorResume(error -> {
+                    System.err.println("Error counting approved opportunities: " + error.getMessage());
+                    return Mono.just(0L);
+                });
     }
 }

@@ -19,18 +19,16 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.DeleteMapping;
 
-
 @RestController
 @RequestMapping("/api/organizations")
 @CrossOrigin("*")
-public class OrganizationController 
-{
+public class OrganizationController {
     private OrganizationService organizationService;
 
     public OrganizationController(OrganizationService organizationService) {
         this.organizationService = organizationService;
     }
-    
+
     @GetMapping("/{id}")
     public Mono<Organization> getMethodName(@PathVariable String id) {
         return organizationService.findOrganization(id);
@@ -40,11 +38,12 @@ public class OrganizationController
     public Mono<Organization> updateVolunteer(
             @PathVariable String id,
             @RequestPart("dto") OrganizationUpdate dto,
-            @RequestPart(value ="image",required=false) MultipartFile image // 'image' is now required as per signature
+            @RequestPart(value = "image", required = false) MultipartFile image // 'image' is now required as per
+                                                                                // signature
     ) throws IOException, ExecutionException, InterruptedException {
         return organizationService.updateOrganization(id, dto, image);
     }
-    
+
     @DeleteMapping("/{id}")
     public Mono<Void> deleteOrganization(@PathVariable String id) {
         return organizationService.deleteOrganization(id);
@@ -58,5 +57,10 @@ public class OrganizationController
     @GetMapping("/{id}/opportunities")
     public Mono<java.util.List<java.util.Map<String, Object>>> getOrganizationOpportunities(@PathVariable String id) {
         return organizationService.getOrganizationOpportunities(id);
+    }
+
+    @GetMapping("/count/approved")
+    public Mono<Long> getTotalApprovedOrganizations() {
+        return organizationService.getTotalApprovedOrganizations();
     }
 }
