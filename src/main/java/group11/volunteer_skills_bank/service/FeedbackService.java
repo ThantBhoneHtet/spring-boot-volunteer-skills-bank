@@ -1,9 +1,11 @@
 package group11.volunteer_skills_bank.service;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpEntity;
@@ -19,12 +21,14 @@ import com.google.cloud.Timestamp;
 
 import group11.volunteer_skills_bank.dto.feedback.FeedbackDto;
 import group11.volunteer_skills_bank.dto.feedback.FeedbackResponseDto;
+import group11.volunteer_skills_bank.dto.feedback.VolunteerFeedbackResponseDto;
 import group11.volunteer_skills_bank.model.Feedback;
 import group11.volunteer_skills_bank.model.Volunteer;
 import group11.volunteer_skills_bank.model.Feedback.FeedbackDetails;
 import group11.volunteer_skills_bank.repository.FeedbackRepo;
 import group11.volunteer_skills_bank.utils.FeedbackCustomRepo;
 import group11.volunteer_skills_bank.model.Opportunity;
+import group11.volunteer_skills_bank.model.Organization;
 
 @Service
 public class FeedbackService {
@@ -40,6 +44,12 @@ public class FeedbackService {
 
     @Autowired
     private VolunteerService volunteerService;
+
+    @Autowired
+    private OrganizationService organizationService;
+
+    @Autowired
+    private OpportunityCompleteService opportunityCompleteService;
 
     public Feedback handleFeedback(String opportunityId, FeedbackDto feedbackDto) {
 
@@ -130,5 +140,40 @@ public class FeedbackService {
             minRating = ((Number) filters.getOrDefault("minRating", 0.0)).floatValue();
         }
         return feedbackCustomRepo.findTopRatedFeedbacks(skills, minCompletedOpportunities, minRating);
+    }
+
+    public Feedback getFeedbacksForVolunteer(String volunteerId) {
+        System.out.println("Fetching feedbacks for volunteerId: " + volunteerId);
+        return feedbackRepo.findById(volunteerId).block();
+    }
+
+    public List<VolunteerFeedbackResponseDto.FeedbackDetail> mapFeedbackDetails(Feedback feedback) {
+         List<VolunteerFeedbackResponseDto.FeedbackDetail> feedbackDetails =
+                        Optional.ofNullable(feedback.getFeedbackDetialsList())
+                                .orElse(Collections.emptyList())
+                                .stream()
+                                .map(detail -> {
+                                    System.out.println("Processing feedbackDetail for opportunityId: " + detail.getOpportunityId());
+                                    Organization org = organizationService.findOrganization(detail.getReviewerId())
+                                                                        .blockOptional()
+                                                                        .orElse(null);
+                                    if (org == null) {
+                                        System.out.println("Organization not found for reviewerId: " + detail.getReviewerId());
+                                    }
+                                    Opportunity opportunity = opportunityCompleteService.getOpportunity(detail.getOpportunityId());
+                                    return new VolunteerFeedbackResponseDto.FeedbackDetail(
+                                        detail.getOpportunityId(),
+                                        opportunity != null ? opportunity.getTitle() : null,
+                                        detail.getReviewerId(),
+                                        org != null ? org.getOrganizationName() : null,
+                                        org != null ? org.getLogoUrl() : null,
+                                        detail.getFeedbackText(),
+                                        detail.getFeedbackTime(),
+                                        detail.getScore(),
+                                        detail.getConfidence()
+                                    );
+                                })
+                                .toList();
+        return feedbackDetails;
     }
 }

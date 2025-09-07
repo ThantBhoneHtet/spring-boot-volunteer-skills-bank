@@ -143,4 +143,20 @@ public class ChatService {
         return chatRepository.deleteById(id);
     }
 
-}
+    public int getOnlineUsersCount(List<String> participantIds) {
+            if (participantIds == null || participantIds.isEmpty()) {
+                return 0;
+            }
+
+            return participantIds.stream()
+                    .mapToInt(id -> {
+                        Volunteer v = volunteerService.getVolunteer(id).block();
+                        if (v != null && Boolean.TRUE.equals(v.getIsOnline())) {
+                            return 1;
+                        }
+                        Organization o = organizationService.findOrganization(id).block();
+                        return (o != null && Boolean.TRUE.equals(o.getIsOnline())) ? 1 : 0;
+                    })
+                    .sum();
+        }
+    }
