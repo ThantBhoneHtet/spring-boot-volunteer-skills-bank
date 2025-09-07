@@ -330,4 +330,12 @@ public class OrganizationService {
                     return Mono.just(0L);
                 });
     }
+
+    public Flux<Organization> getAllOrganization() {
+        return organizationRepo.findAll()
+                .onErrorResume(error -> {
+                    System.err.println("Error fetching organizations: " + error.getMessage());
+                    return Flux.empty();
+                });
+    }
 }

@@ -54,7 +54,7 @@ public class VolunteerService {
         volunteer.setEmail(dto.email());
         volunteer.setFirstName(dto.firstName());
         volunteer.setLastName(dto.lastName());
-        volunteer.setPassword(dto.password());
+        volunteer.setPassword(passwordEncoder.encode(dto.password()));
         volunteer.setCompletedOpportunities(0);
         volunteer.setRating(0.0f);
         volunteer.setTotalHours(0);
@@ -166,7 +166,7 @@ public class VolunteerService {
 
     public Volunteer login(String email, String password) {
         Volunteer volunteer = volunteerRepository.findByEmail(email).block();
-        if (volunteer != null && password.equals(volunteer.getPassword())) {
+        if (volunteer != null && passwordEncoder.matches(password, volunteer.getPassword())) {
             return volunteer;
         }
 

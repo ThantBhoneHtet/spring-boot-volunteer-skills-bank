@@ -8,6 +8,7 @@ import org.springframework.web.multipart.MultipartFile;
 import group11.volunteer_skills_bank.dto.organization.OrganizationUpdate;
 import group11.volunteer_skills_bank.model.Organization;
 import group11.volunteer_skills_bank.service.OrganizationService;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.io.IOException;
@@ -62,5 +63,10 @@ public class OrganizationController {
     @GetMapping("/count/approved")
     public Mono<Long> getTotalApprovedOrganizations() {
         return organizationService.getTotalApprovedOrganizations();
+    }
+
+    @GetMapping("")
+    public Flux<Organization> getAllOrganization() {
+        return organizationService.getAllOrganization();
     }
 }
